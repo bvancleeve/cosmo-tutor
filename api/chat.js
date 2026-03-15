@@ -1,7 +1,4 @@
-// api/chat.js — Vercel Serverless Function
-// Proxies requests to Anthropic API, keeping your key secret
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: { message: "Method not allowed" } });
   }
@@ -17,9 +14,9 @@ export default async function handler(req, res) {
       headers: {
         "Content-Type": "application/json",
         "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "anthropic-version": "2023-06-01"
       },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(req.body)
     });
 
     const data = await response.json();
@@ -28,4 +25,4 @@ export default async function handler(req, res) {
     console.error("API proxy error:", err);
     res.status(500).json({ error: { message: "Failed to reach AI service" } });
   }
-}
+};
