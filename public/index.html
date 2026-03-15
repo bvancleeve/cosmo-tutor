@@ -71,7 +71,54 @@ const SUBJECTS = [
 ];
 
 const GRADES=["K","1st","2nd","3rd","4th","5th","6th","7th","8th"];
-const AVATARS=["🦸‍♂️","🦸‍♀️","🧑‍🚀","🧙","🥷","🧑‍🎨","🦊","🐱","🐶","🦄","🐉"];
+// ─── AVATAR SYSTEM ───
+const SKIN_TONES=[
+  {id:"default",label:"Default",mod:""},
+  {id:"light",label:"Light",mod:"\u{1F3FB}"},
+  {id:"mlight",label:"Medium-Light",mod:"\u{1F3FC}"},
+  {id:"medium",label:"Medium",mod:"\u{1F3FD}"},
+  {id:"mdark",label:"Medium-Dark",mod:"\u{1F3FE}"},
+  {id:"dark",label:"Dark",mod:"\u{1F3FF}"}
+];
+const HAIR_STYLES=[
+  {id:"default",label:"Default",zwj:""},
+  {id:"red",label:"Red Hair",zwj:"\u200D\u{1F9B0}"},
+  {id:"curly",label:"Curly",zwj:"\u200D\u{1F9B1}"},
+  {id:"white",label:"White Hair",zwj:"\u200D\u{1F9B3}"},
+  {id:"bald",label:"Bald",zwj:"\u200D\u{1F9B2}"}
+];
+const AVATAR_BASES=[
+  {id:"hero_m",base:"🦸‍♂️",skinBase:"\u{1F9B8}",genderZwj:"\u200D\u2642\uFE0F",label:"Hero",supportsSkin:true,supportsHair:false,free:true},
+  {id:"hero_f",base:"🦸‍♀️",skinBase:"\u{1F9B8}",genderZwj:"\u200D\u2640\uFE0F",label:"Heroine",supportsSkin:true,supportsHair:false,free:true},
+  {id:"astro",base:"🧑‍🚀",skinBase:"\u{1F9D1}",genderZwj:"\u200D\u{1F680}",label:"Astronaut",supportsSkin:true,supportsHair:false,free:false},
+  {id:"wizard",base:"🧙",skinBase:"\u{1F9D9}",genderZwj:"",label:"Wizard",supportsSkin:true,supportsHair:false,free:false},
+  {id:"ninja",base:"🥷",skinBase:"\u{1F977}",genderZwj:"",label:"Ninja",supportsSkin:true,supportsHair:false,free:false},
+  {id:"artist",base:"🧑‍🎨",skinBase:"\u{1F9D1}",genderZwj:"\u200D\u{1F3A8}",label:"Artist",supportsSkin:true,supportsHair:false,free:false},
+  {id:"person",base:"🧑",skinBase:"\u{1F9D1}",genderZwj:"",label:"Person",supportsSkin:true,supportsHair:true,free:false},
+  {id:"girl",base:"👧",skinBase:"\u{1F467}",genderZwj:"",label:"Girl",supportsSkin:true,supportsHair:false,free:false},
+  {id:"boy",base:"👦",skinBase:"\u{1F466}",genderZwj:"",label:"Boy",supportsSkin:true,supportsHair:false,free:false},
+  {id:"fox",base:"🦊",label:"Fox",supportsSkin:false,supportsHair:false,free:false},
+  {id:"cat",base:"🐱",label:"Cat",supportsSkin:false,supportsHair:false,free:false},
+  {id:"dog",base:"🐶",label:"Dog",supportsSkin:false,supportsHair:false,free:false},
+  {id:"unicorn",base:"🦄",label:"Unicorn",supportsSkin:false,supportsHair:false,free:false},
+  {id:"dragon",base:"🐉",label:"Dragon",supportsSkin:false,supportsHair:false,free:false},
+];
+function buildAvatar(base,skinIdx,hairIdx){
+  if(!base.supportsSkin)return base.base;
+  const skin=SKIN_TONES[skinIdx||0];
+  if(skin.id==="default"){
+    if(base.supportsHair&&hairIdx>0){
+      return base.skinBase+HAIR_STYLES[hairIdx].zwj;
+    }
+    return base.base;
+  }
+  let result=base.skinBase+skin.mod;
+  if(base.supportsHair&&hairIdx>0){result+=HAIR_STYLES[hairIdx].zwj}
+  else if(base.genderZwj){result+=base.genderZwj}
+  return result;
+}
+// Legacy compat — flat list for simple checks
+const AVATARS=AVATAR_BASES.map(b=>b.base);
 const XP_PER_LEVEL=100, XP_CHAT=5, XP_CHALLENGE=50;
 const ALL_US_STATES=["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
 
@@ -125,24 +172,24 @@ const PLANS = {
   free: {
     id:"free",name:"Explorer",price:"Free",priceNum:0,period:"",
     color:"#888",
-    limits:{sessionsPerDay:3,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading"],worlds:["space"],avatars:["🦸‍♂️","🦸‍♀️"]},
-    features:["3 tutoring sessions per day","5 challenge questions per day","2 homework photo scans per day","Math & Reading only","1 student profile","Space world only","2 avatar choices"]
+    limits:{sessionsPerDay:3,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading"],worlds:["space"],avatarBases:["hero_m","hero_f"]},
+    features:["3 tutoring sessions per day","5 challenge questions per day","2 homework photo scans per day","Math & Reading only","1 student profile","Space world only","2 avatars with skin tones"]
   },
   family: {
     id:"family",name:"Family",price:"$9.99",priceNum:9.99,period:"/month",
     color:"#4ECDC4",badge:"⭐",
-    limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:4,subjects:null,worlds:null,avatars:null},
-    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 11 avatars","Detailed parent analytics","Priority AI responses"]
+    limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:4,subjects:null,worlds:null,avatarBases:null},
+    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 14 avatars with skin tones & hair styles","Detailed parent analytics","Priority AI responses"]
   },
   pro: {
     id:"pro",name:"Pro",price:"$14.99",priceNum:14.99,period:"/month",
     color:"#FFD700",badge:"👑",popular:true,
-    limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:10,subjects:null,worlds:null,avatars:null},
+    limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:10,subjects:null,worlds:null,avatarBases:null},
     features:["Everything in Family, plus:","Up to 10 student profiles","Advanced learning analytics","Custom curriculum mapping","Printable progress reports","Weekly email summaries","Early access to new features","School-ready data exports"]
   }
 };
 
-function getPlan(){return PLANS[S.profile?.plan||"free"]}
+function getPlan(){return PLANS[S.profile?.plan||S.pendingPlan||"free"]}
 function getOnboardPlan(){
   // During onboarding, check if any existing profile has a paid plan
   const paidProfile=S.profiles.find(p=>p.plan&&p.plan!=="free");
@@ -153,7 +200,7 @@ function canAccess(feature, count){
   const lim=plan.limits;
   if(feature==="subject"){const sub=typeof count==="string"?count:null;if(!lim.subjects)return true;return lim.subjects.includes(sub)}
   if(feature==="world"){if(!lim.worlds)return true;return lim.worlds.includes(count)}
-  if(feature==="avatar"){if(!lim.avatars)return true;return lim.avatars.includes(count)}
+  if(feature==="avatar"){if(!lim.avatarBases)return true;return lim.avatarBases.includes(count)}
   if(feature==="sessions")return(S.profile?.dailySessions||0)<lim.sessionsPerDay;
   if(feature==="challenges")return(S.profile?.dailyChallenges||0)<lim.challengesPerDay;
   if(feature==="photos")return(S.profile?.dailyPhotos||0)<lim.photoUploads;
@@ -173,7 +220,7 @@ let S = {
   challengeQ:null, challengeSel:null, challengeResult:null,
   parentPin:"", parentAuth:false, parentTab:"overview",
   activityLog:[], uploadedImage:null,
-  onboard:{name:"",grade:"3rd",avatar:"🧑‍🚀",theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
+  onboard:{name:"",grade:"3rd",avatar:"🦸‍♂️",avatarBaseIdx:0,avatarSkinIdx:0,avatarHairIdx:0,theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
   tutorial:{show:false,mode:null,step:0},
   parentCurrTab:"national",
   showUpgrade:false, showPaywall:null, showPromo:false,
@@ -357,8 +404,51 @@ function render(){
           ${GRADES.map(g=>`<button onclick="S.onboard.grade='${g}';render()" style="background:${S.onboard.grade===g?ot.accent1:"rgba(255,255,255,.06)"};color:${S.onboard.grade===g?"#000":"rgba(255,255,255,.5)"};border-radius:10px;padding:8px 14px;font-weight:800;font-size:13px;border:1px solid ${S.onboard.grade===g?ot.accent1:"rgba(255,255,255,.1)"}">${g}</button>`).join("")}
         </div>
         <label style="color:${ot.accent1};font-weight:800;font-size:13px;display:block;margin-bottom:6px">AVATAR</label>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
-          ${(()=>{const obPlan=getOnboardPlan();const freeAvatars=obPlan.limits.avatars;return AVATARS.map(a=>{const locked=freeAvatars&&!freeAvatars.includes(a);return`<button onclick="${locked?"S.showPaywall={reason:'avatar'};render()":"S.onboard.avatar='"+a+"';render()"}" style="font-size:28px;padding:6px;border-radius:12px;border:3px solid ${S.onboard.avatar===a?ot.accent1:locked?"rgba(255,255,255,.04)":"rgba(255,255,255,.08)"};background:${S.onboard.avatar===a?ot.accent1+"22":"rgba(0,0,0,.2)"};transform:${S.onboard.avatar===a?"scale(1.15)":"scale(1)"};transition:all .2s;position:relative;${locked?"opacity:.35;filter:grayscale(.8)":""}">${a}${locked?'<span style="position:absolute;bottom:-2px;right:-2px;font-size:10px">🔒</span>':""}</button>`}).join("")})()}
+        <div style="margin-bottom:16px">
+          ${(()=>{
+            const obPlan=getOnboardPlan();const freeBases=obPlan.limits.avatarBases;
+            const selBase=AVATAR_BASES[S.onboard.avatarBaseIdx];
+            const currentEmoji=buildAvatar(selBase,S.onboard.avatarSkinIdx,S.onboard.avatarHairIdx);
+            // Preview
+            let html=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;background:rgba(0,0,0,.2);border-radius:14px;padding:12px;border:2px solid ${ot.accent1}44">
+              <div style="font-size:48px;width:60px;height:60px;display:flex;align-items:center;justify-content:center;background:${ot.accent1}15;border-radius:14px">${currentEmoji}</div>
+              <div><div style="font-weight:800;color:#fff;font-size:14px">${selBase.label}</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.35)">${selBase.supportsSkin?"Customize skin tone"+(selBase.supportsHair?" & hair":"")+" below":"This character can't be customized"}</div></div>
+            </div>`;
+            // Base character grid
+            html+=`<div style="font-size:10px;color:rgba(255,255,255,.35);margin-bottom:4px">CHARACTER</div>`;
+            html+=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">`;
+            AVATAR_BASES.forEach((ab,idx)=>{
+              const locked=freeBases&&!freeBases.includes(ab.id);
+              const sel=S.onboard.avatarBaseIdx===idx;
+              html+=`<button onclick="${locked?"S.showPaywall={reason:'avatar'};render()":"pickAvatarBase("+idx+")"}" style="font-size:26px;padding:5px;border-radius:10px;border:2.5px solid ${sel?ot.accent1:locked?"rgba(255,255,255,.04)":"rgba(255,255,255,.1)"};background:${sel?ot.accent1+"22":"rgba(0,0,0,.2)"};transition:all .2s;position:relative;${locked?"opacity:.3;filter:grayscale(.8)":""}${sel?";transform:scale(1.1)":""}">${ab.base}${locked?'<span style="position:absolute;bottom:-2px;right:-2px;font-size:8px">🔒</span>':""}</button>`;
+            });
+            html+=`</div>`;
+            // Skin tone picker
+            if(selBase.supportsSkin){
+              html+=`<div style="font-size:10px;color:rgba(255,255,255,.35);margin-bottom:4px">SKIN TONE</div>`;
+              html+=`<div style="display:flex;gap:6px;margin-bottom:10px">`;
+              const skinColors=["#FFCC22","#F8D5B0","#E8B98A","#C68642","#8D5524","#5C3018"];
+              SKIN_TONES.forEach((st,idx)=>{
+                const sel=S.onboard.avatarSkinIdx===idx;
+                html+=`<button onclick="pickAvatarSkin(${idx})" style="width:32px;height:32px;border-radius:50%;background:${skinColors[idx]};border:3px solid ${sel?ot.accent1:"rgba(255,255,255,.15)"};cursor:pointer;transition:all .2s;${sel?"transform:scale(1.2);box-shadow:0 0 12px "+ot.accent1+"66":""}"></button>`;
+              });
+              html+=`</div>`;
+            }
+            // Hair picker
+            if(selBase.supportsHair){
+              html+=`<div style="font-size:10px;color:rgba(255,255,255,.35);margin-bottom:4px">HAIR STYLE</div>`;
+              html+=`<div style="display:flex;gap:6px;margin-bottom:10px">`;
+              const hairIcons=["🧑","🧑‍🦰","🧑‍🦱","🧑‍🦳","🧑‍🦲"];
+              const hairLabels=["Default","Red","Curly","White","Bald"];
+              HAIR_STYLES.forEach((hs,idx)=>{
+                const sel=S.onboard.avatarHairIdx===idx;
+                html+=`<button onclick="pickAvatarHair(${idx})" style="font-size:20px;padding:4px 8px;border-radius:10px;border:2.5px solid ${sel?ot.accent1:"rgba(255,255,255,.1)"};background:${sel?ot.accent1+"22":"rgba(0,0,0,.2)"};cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:1px"><span>${hairIcons[idx]}</span><span style="font-size:7px;color:rgba(255,255,255,.4)">${hairLabels[idx]}</span></button>`;
+              });
+              html+=`</div>`;
+            }
+            return html;
+          })()}
         </div>
         <label style="color:${ot.accent1};font-weight:800;font-size:13px;display:block;margin-bottom:6px">CHOOSE YOUR WORLD</label>
         <div class="grid-2" style="gap:8px;margin-bottom:16px">
@@ -783,12 +873,35 @@ function tutorialOverlayHTML(){
 // ═══════════════════════════════════════════
 //  ACTIONS
 // ═══════════════════════════════════════════
+// Avatar picker functions
+function pickAvatarBase(idx){
+  S.onboard.avatarBaseIdx=idx;
+  const base=AVATAR_BASES[idx];
+  if(!base.supportsSkin)S.onboard.avatarSkinIdx=0;
+  if(!base.supportsHair)S.onboard.avatarHairIdx=0;
+  S.onboard.avatar=buildAvatar(base,S.onboard.avatarSkinIdx,S.onboard.avatarHairIdx);
+  render();
+}
+function pickAvatarSkin(idx){
+  S.onboard.avatarSkinIdx=idx;
+  const base=AVATAR_BASES[S.onboard.avatarBaseIdx];
+  S.onboard.avatar=buildAvatar(base,idx,S.onboard.avatarHairIdx);
+  render();
+}
+function pickAvatarHair(idx){
+  S.onboard.avatarHairIdx=idx;
+  const base=AVATAR_BASES[S.onboard.avatarBaseIdx];
+  S.onboard.avatar=buildAvatar(base,S.onboard.avatarSkinIdx,idx);
+  render();
+}
+
 function toggleOnboardStd(id){S.onboard.standards.includes(id)?S.onboard.standards=S.onboard.standards.filter(s=>s!==id):S.onboard.standards.push(id);render()}
 function removeOnboardStd(id){S.onboard.standards=S.onboard.standards.filter(s=>s!==id);render()}
 
 async function createProfile(){
   if(!S.onboard.name.trim())return;
-  const prof={id:Date.now().toString(),name:S.onboard.name.trim(),grade:S.onboard.grade,avatar:S.onboard.avatar,theme:S.onboard.theme,xp:0,level:1,streak:0,lastActive:null,parentPin:S.onboard.pin||"1234",totalSessions:0,standards:S.onboard.standards,studentState:S.onboard.state,created:Date.now()};
+  const prof={id:Date.now().toString(),name:S.onboard.name.trim(),grade:S.onboard.grade,avatar:S.onboard.avatar,theme:S.onboard.theme,xp:0,level:1,streak:0,lastActive:null,parentPin:S.onboard.pin||"1234",totalSessions:0,standards:S.onboard.standards,studentState:S.onboard.state,plan:S.pendingPlan||"free",created:Date.now()};
+  S.pendingPlan=null;
   S.profiles.push(prof);S.profile=prof;S.themeId=S.onboard.theme;
   await save("cosmo-profiles",S.profiles);
   S.activityLog.unshift({type:"profile_created",profile:prof.name,time:Date.now()});
@@ -883,15 +996,20 @@ function tryParentLogin(){if(S.parentPin===(S.profile?.parentPin||"1234")){S.par
 const PROMO_CODES={"COSMODEMO":"pro","COSMOFAMILY":"family","ROCKETFUEL":"pro"};
 function tryPromoCode(code){
   const plan=PROMO_CODES[code.toUpperCase().trim()];
-  if(plan&&S.profile){
-    S.profile.plan=plan;saveProfile(S.profile);
-    S.showPaywall=null;S.showUpgrade=false;S.showPromo=false;
+  if(plan){
+    if(S.profile){S.profile.plan=plan;saveProfile(S.profile)}
+    // Also store globally so new profiles get it
+    S.pendingPlan=plan;
+    S.showPaywall=null;S.showUpgrade=false;
     alert("🚀 "+PLANS[plan].name+" plan activated! All features unlocked.");
     render();return true;
   }
-  alert("Invalid code. Please try again.");return false;
+  alert("Invalid code. Try: COSMODEMO");return false;
 }
-function applyPromo(inputId){var el=document.getElementById(inputId);if(el&&el.value)tryPromoCode(el.value)}
+function applyPromo(){
+  const code=prompt("Enter promo code:");
+  if(code)tryPromoCode(code);
+}
 
 async function switchTheme(id){S.themeId=id;if(S.profile){S.profile.theme=id;await saveProfile(S.profile)}render()}
 function switchProfile(id){const pr=S.profiles.find(p=>p.id===id);if(pr){S.profile=pr;S.themeId=pr.theme||"space";S.screen="home";render()}}
@@ -1481,8 +1599,7 @@ function paywallHTML(reason){
     </div>
     <button onclick="S.showPaywall=null;render()" style="display:block;margin:0 auto;font-size:13px;color:rgba(255,255,255,.3)">Not now</button>
     <div style="text-align:center;margin-top:12px">
-      <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:11px;color:rgba(255,255,255,.25);background:none;border:none;cursor:pointer">Have a promo code?</button>
-      ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-pw" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="applyPromo('promo-pw')" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
+      <button onclick="applyPromo()" style="font-size:12px;color:#FFD700;background:none;border:none;cursor:pointer">🎟️ Have a promo code?</button>
     </div>
   </div></div>`;
 }
@@ -1513,8 +1630,7 @@ function upgradeScreenHTML(){
       </div>`).join("")}
       <div class="text-center" style="margin-top:8px">
         <div style="font-size:11px;color:rgba(255,255,255,.2);line-height:1.6">Cancel anytime. 7-day free trial for new subscribers.<br>Secure payment powered by Stripe.</div>
-        <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:12px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer;margin-top:12px">🎟️ Have a promo code?</button>
-        ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-up" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="applyPromo('promo-up')" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
+        <button onclick="applyPromo()" style="font-size:12px;color:#FFD700;background:none;border:none;cursor:pointer;margin-top:12px">🎟️ Have a promo code?</button>
       </div>
     </div>
   </div>`;
