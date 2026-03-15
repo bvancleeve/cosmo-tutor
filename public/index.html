@@ -891,6 +891,7 @@ function tryPromoCode(code){
   }
   alert("Invalid code. Please try again.");return false;
 }
+function applyPromo(inputId){var el=document.getElementById(inputId);if(el&&el.value)tryPromoCode(el.value)}
 
 async function switchTheme(id){S.themeId=id;if(S.profile){S.profile.theme=id;await saveProfile(S.profile)}render()}
 function switchProfile(id){const pr=S.profiles.find(p=>p.id===id);if(pr){S.profile=pr;S.themeId=pr.theme||"space";S.screen="home";render()}}
@@ -1481,7 +1482,7 @@ function paywallHTML(reason){
     <button onclick="S.showPaywall=null;render()" style="display:block;margin:0 auto;font-size:13px;color:rgba(255,255,255,.3)">Not now</button>
     <div style="text-align:center;margin-top:12px">
       <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:11px;color:rgba(255,255,255,.25);background:none;border:none;cursor:pointer">Have a promo code?</button>
-      ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-pw" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="const v=document.getElementById('promo-pw')?.value;if(v)tryPromoCode(v)" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
+      ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-pw" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="applyPromo('promo-pw')" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
     </div>
   </div></div>`;
 }
@@ -1513,7 +1514,7 @@ function upgradeScreenHTML(){
       <div class="text-center" style="margin-top:8px">
         <div style="font-size:11px;color:rgba(255,255,255,.2);line-height:1.6">Cancel anytime. 7-day free trial for new subscribers.<br>Secure payment powered by Stripe.</div>
         <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:12px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer;margin-top:12px">🎟️ Have a promo code?</button>
-        ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-up" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="const v=document.getElementById('promo-up')?.value;if(v)tryPromoCode(v)" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
+        ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-up" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="applyPromo('promo-up')" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
       </div>
     </div>
   </div>`;
@@ -1540,6 +1541,13 @@ async function selectPlan(planId){
   S.toolData.notepad=notepad;S.toolData.flashcards=flashcards;
   if(profs.length>0){S.profile=profs[0];S.themeId=profs[0].theme||"space";S.screen="home"}
   else S.screen="splash";
+  // URL parameter bypass: ?unlock=COSMODEMO or ?unlock=pro
+  const params=new URLSearchParams(window.location.search);
+  const unlockCode=params.get("unlock");
+  if(unlockCode&&S.profile){
+    const plan=PROMO_CODES[unlockCode.toUpperCase().trim()]||( unlockCode.toLowerCase()==="pro"?"pro":unlockCode.toLowerCase()==="family"?"family":null);
+    if(plan){S.profile.plan=plan;saveProfile(S.profile)}
+  }
   render();
 })();
 </script>
