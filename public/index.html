@@ -220,6 +220,7 @@ let S = {
   challengeQ:null, challengeSel:null, challengeResult:null,
   parentPin:"", parentAuth:false, parentTab:"overview",
   activityLog:[], uploadedImage:null, uploadedImageType:null,
+  hints:{active:false,count:0,maxXP:25,problemId:null},
   onboard:{name:"",grade:"3rd",avatar:"🦸‍♂️",avatarBaseIdx:0,avatarSkinIdx:0,avatarHairIdx:0,theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
   tutorial:{show:false,mode:null,step:0},
   parentCurrTab:"national",
@@ -253,6 +254,32 @@ const BLOCKED_PATTERNS = [
 
 const REDIRECT_MSG_STUDENT = "Whoa there! 🚀 Let's keep our brains locked onto learning. What [SUBJECT] question can I help you with?";
 const REDIRECT_MSG_OUTPUT = "Oops — let me get back on track! What are we working on? I'm ready to help with [SUBJECT]! 💪";
+
+const HINT_PROMPT = `IMPORTANT HINT MODE RULES:
+The student has uploaded a homework photo. You MUST follow these rules:
+1. NEVER give the direct answer to any problem on the sheet.
+2. Instead, give a HINT that helps them think through the problem themselves.
+3. Start by identifying what problems are on the sheet and ask which one they want help with.
+4. For each hint, guide their thinking with questions like "What do you get when you..." or "Try breaking this into smaller steps..."
+5. If they ask for another hint, give a slightly more specific hint — but still do NOT solve it for them.
+6. Only confirm if their OWN answer is correct or incorrect.
+7. Encourage them with phrases like "You're on the right track!" or "Think about it this way..."
+8. If they explicitly say "I give up" or "just tell me the answer", you may explain the solution step-by-step, but remind them they learn more by trying.
+9. Keep hints short — 1-2 sentences max per hint.`;
+
+const HINT_LEVELS = [
+  {hint:1,desc:"General direction",xp:25},
+  {hint:2,desc:"More specific guidance",xp:20},
+  {hint:3,desc:"Nearly there",xp:15},
+  {hint:4,desc:"Very direct hint",xp:10},
+  {hint:5,desc:"Almost giving it away",xp:5},
+];
+function getHintXP(){
+  const h=S.hints.count;
+  if(h<=0)return 25;
+  if(h>=5)return 5;
+  return HINT_LEVELS[h-1]?.xp||5;
+}
 
 function checkInput(text){
   if(!text)return{ok:true};
@@ -631,6 +658,30 @@ function render(){
         </div>
         <button onclick="S.uploadedImage=null;S.uploadedImageType=null;render()" style="color:${t.danger};font-size:18px;font-weight:800;padding:4px 8px;border-radius:8px;background:${t.danger}15">✕</button>
       </div>`:""}
+      ${S.hints.active?`
+      <div style="padding:8px 14px;background:rgba(0,0,0,.5);border-top:1px solid ${t.accent2}33">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:14px">💡</span>
+          <div style="flex:1">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="font-size:11px;font-weight:800;color:${t.accent2}">HINT MODE — Think it through!</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.4)">${S.hints.count} hint${S.hints.count!==1?"s":""} used</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+              <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+                <div style="width:${(getHintXP()/25)*100}%;height:100%;background:linear-gradient(90deg,${getHintXP()>15?t.success:getHintXP()>8?t.accent2:t.danger},${t.accent2});border-radius:3px;transition:width .4s"></div>
+              </div>
+              <div class="bang" style="font-size:11px;color:${getHintXP()>15?t.success:getHintXP()>8?t.accent2:t.danger}">${getHintXP()} ${t.xpLabel}</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="sendMessage('Give me a hint')" style="flex:1;background:linear-gradient(135deg,${t.accent2}33,${t.accent3}33);border:1.5px solid ${t.accent2}44;border-radius:10px;padding:8px 0;font-size:12px;font-weight:800;color:${t.accent2};cursor:pointer">💡 Hint (−5 ${t.xpLabel})</button>
+          <button onclick="sendMessage('I want to try answering it myself')" style="flex:1;background:linear-gradient(135deg,${t.accent1}33,${t.success}33);border:1.5px solid ${t.accent1}44;border-radius:10px;padding:8px 0;font-size:12px;font-weight:800;color:${t.accent1};cursor:pointer">✏️ I'll try!</button>
+          <button onclick="endHintMode()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:8px 12px;font-size:12px;color:rgba(255,255,255,.3);cursor:pointer">Done</button>
+        </div>
+        <div style="font-size:9px;color:rgba(255,255,255,.2);text-align:center;margin-top:6px">Fewer hints = more ${t.xpLabel}! Try to solve it on your own 💪</div>
+      </div>`:""}
       <div style="padding:10px 14px;background:rgba(0,0,0,.5);border-top:1px solid ${t.accent1}15;position:relative;z-index:2;backdrop-filter:blur(10px)">
         <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
         <input type="file" id="file-input" accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
@@ -917,7 +968,7 @@ async function startChat(idx){
   if(!canAccess("subject",sub.label)){S.showPaywall={reason:"subject",subject:sub.label};render();return}
   // Check daily session limit
   if(!canAccess("sessions")){S.showPaywall={reason:"sessions"};render();return}
-  S.subject=sub;S.chatMessages=[];S.uploadedImage=null;S.uploadedImageType=null;S.chatInput="";S.screen="chat";render();
+  S.subject=sub;S.chatMessages=[];S.uploadedImage=null;S.uploadedImageType=null;S.chatInput="";S.hints={active:false,count:0,maxXP:25,problemId:null};S.screen="chat";render();
   await updateStreak();
   const p=S.profile;
   p.dailySessions=(p.dailySessions||0)+1;
@@ -930,8 +981,9 @@ async function startChat(idx){
   render();
 }
 
-async function sendMessage(){
-  const text=S.chatInput.trim();if(!text&&!S.uploadedImage)return;
+async function sendMessage(hintAction){
+  const text=hintAction||S.chatInput.trim();
+  if(!text&&!S.uploadedImage)return;
   
   // Client-side content filter
   const check = checkInput(text);
@@ -943,14 +995,45 @@ async function sendMessage(){
     return;
   }
   
-  const userMsg={role:"user",content:text,image:S.uploadedImage||null,imageType:S.uploadedImageType||"image/jpeg"};
+  // Enter hint mode when image is uploaded
+  const hasImage=S.uploadedImage||null;
+  if(hasImage&&!S.hints.active){
+    S.hints={active:true,count:0,maxXP:25,problemId:Date.now()};
+  }
+  // Track hints
+  if(S.hints.active&&(hintAction==="Give me a hint"||hintAction==="One more hint please")){
+    S.hints.count++;
+  }
+
+  const userMsg={role:"user",content:text,image:hasImage,imageType:S.uploadedImageType||"image/jpeg"};
   S.chatMessages.push(userMsg);S.chatInput="";S.uploadedImage=null;S.uploadedImageType=null;S.isTyping=true;render();
   const t=T(),p=S.profile;
   const apiMsgs=S.chatMessages.map(m=>({role:m.role,content:m.image?[{type:"image",source:{type:"base64",media_type:m.imageType||"image/jpeg",data:m.image}},{type:"text",text:m.content||"Help me with this image"}]:m.content}));
-  const sys=t.sysPrompt+` Subject: ${S.subject?.label}. Student grade: ${p?.grade||"unknown"}. Student name: ${p?.name||"student"}.${currPrompt(p?.standards,p?.studentState)} If they get an answer right, say so enthusiastically. If wrong, guide them gently. Keep responses concise. IMPORTANT: Stay strictly on the topic of ${S.subject?.label}. If the student goes off-topic, gently redirect them back.`;
+  
+  // Build system prompt — add hint rules when in hint mode
+  let sys=t.sysPrompt+` Subject: ${S.subject?.label}. Student grade: ${p?.grade||"unknown"}. Student name: ${p?.name||"student"}.${currPrompt(p?.standards,p?.studentState)} Keep responses concise. Stay on topic.`;
+  if(S.hints.active){
+    sys+="\n\n"+HINT_PROMPT+`\n\nThis is hint #${S.hints.count+1}. The student has used ${S.hints.count} hint(s) so far. ${S.hints.count===0?"Start by looking at the image and asking which problem they want help with.":S.hints.count<=2?"Give a guiding hint — help them think, don't solve.":"They've had several hints. Be more specific but still encourage them to try."}`;
+  }else{
+    sys+=" If they get an answer right, say so enthusiastically. If wrong, guide them gently.";
+  }
+  
   const reply=await askAI(apiMsgs,sys);
   S.chatMessages.push({role:"assistant",content:reply});S.isTyping=false;
-  await addXP(XP_CHAT,"chat message");render();
+  
+  // XP: less for hints, more for independent work
+  if(S.hints.active){
+    const earnedXP=getHintXP();
+    await addXP(earnedXP,"homework help ("+S.hints.count+" hints)");
+  }else{
+    await addXP(XP_CHAT,"chat message");
+  }
+  render();
+}
+
+function endHintMode(){
+  S.hints={active:false,count:0,maxXP:25,problemId:null};
+  render();
 }
 
 async function startChallenge(){
