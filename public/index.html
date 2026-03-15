@@ -71,7 +71,7 @@ const SUBJECTS = [
 ];
 
 const GRADES=["K","1st","2nd","3rd","4th","5th","6th","7th","8th"];
-const AVATARS=["🧑‍🚀","🦸","🧙","🥷","🧑‍🎨","🦊","🐱","🐶","🦄","🐉"];
+const AVATARS=["🦸‍♂️","🦸‍♀️","🧑‍🚀","🧙","🥷","🧑‍🎨","🦊","🐱","🐶","🦄","🐉"];
 const XP_PER_LEVEL=100, XP_CHAT=5, XP_CHALLENGE=50;
 const ALL_US_STATES=["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
 
@@ -125,14 +125,14 @@ const PLANS = {
   free: {
     id:"free",name:"Explorer",price:"Free",priceNum:0,period:"",
     color:"#888",
-    limits:{sessionsPerDay:3,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading"],worlds:["space"],avatars:["🧑‍🚀","🦸"]},
+    limits:{sessionsPerDay:3,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading"],worlds:["space"],avatars:["🦸‍♂️","🦸‍♀️"]},
     features:["3 tutoring sessions per day","5 challenge questions per day","2 homework photo scans per day","Math & Reading only","1 student profile","Space world only","2 avatar choices"]
   },
   family: {
     id:"family",name:"Family",price:"$9.99",priceNum:9.99,period:"/month",
     color:"#4ECDC4",badge:"⭐",
     limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:4,subjects:null,worlds:null,avatars:null},
-    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 10 avatars","Detailed parent analytics","Priority AI responses"]
+    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 11 avatars","Detailed parent analytics","Priority AI responses"]
   },
   pro: {
     id:"pro",name:"Pro",price:"$14.99",priceNum:14.99,period:"/month",
@@ -176,7 +176,15 @@ let S = {
   onboard:{name:"",grade:"3rd",avatar:"🧑‍🚀",theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
   tutorial:{show:false,mode:null,step:0},
   parentCurrTab:"national",
-  showUpgrade:false, showPaywall:null
+  showUpgrade:false, showPaywall:null, showPromo:false,
+  tool:null, // "calculator","notepad","scratch","formulas","timer","flashcards"
+  rewardGame:null, // {active:true,level:N}
+  toolData:{
+    calc:{display:"0",prev:null,op:null,fresh:true},
+    notepad:"",
+    timer:{seconds:0,running:false,interval:null},
+    flashcards:[],fcIdx:0,fcFlipped:false,fcFront:"",fcBack:""
+  }
 };
 const T = () => THEMES[S.themeId];
 
@@ -279,11 +287,14 @@ function confettiHTML(t){return`<div style="position:fixed;inset:0;pointer-event
 
 async function addXP(amt,reason){
   const p=S.profile;if(!p)return;
+  const oldLevel=p.level||1;
   p.xp=(p.xp||0)+amt;p.level=Math.floor(p.xp/XP_PER_LEVEL)+1;
+  const leveledUp=p.level>oldLevel;
   await saveProfile(p);
   S.activityLog.unshift({type:"xp",amount:amt,reason,subject:S.subject?.label,profile:p.name,time:Date.now()});
   S.activityLog=S.activityLog.slice(0,200);
   await save("cosmo-activity",S.activityLog);
+  if(leveledUp){showConfetti();setTimeout(()=>{S.rewardGame={active:true,level:p.level};render()},1500)}
 }
 async function updateStreak(){
   const p=S.profile;if(!p)return;
@@ -406,6 +417,7 @@ function render(){
             <div><div style="font-weight:800;font-size:14px">Hey, ${esc(p?.name||"Student")}!</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Grade ${p?.grade||""}</div></div>
           </div>
           <div class="flex-gap">
+            <button onclick="S.tool='menu';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">🛠️ TOOLS</button>
             <button onclick="S.tutorial.show=true;render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">❓ HELP</button>
             ${S.profiles.length>1?`<button onclick="S.screen='profile-select';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">👥 SWITCH</button>`:""}
             <button onclick="S.parentAuth=false;S.parentPin='';S.screen='parent';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">📡 PARENT</button>
@@ -456,11 +468,12 @@ function render(){
       ${S.tutorial.mode?tutorialOverlayHTML():""}
       ${S.showPaywall?paywallHTML(S.showPaywall.reason):""}
       ${S.showUpgrade?upgradeScreenHTML():""}
+      ${S.tool?toolOverlayHTML():""}
+      ${S.rewardGame?rewardGameOverlayHTML():""}
     </div>`;
+    if(S.rewardGame?.active)setTimeout(launchRewardGame,100);
     return;
   }
-
-  // ─── UPGRADE SCREEN (standalone) ───
   if(S.screen==="upgrade"){
     app.innerHTML=upgradeScreenHTML();
     return;
@@ -477,6 +490,7 @@ function render(){
           <span class="bang" style="color:${sub?.color||t.accent1};font-size:14px">${sub?.emoji} ${sub?.label}</span>
         </div>
         <div class="flex-gap">
+          <button onclick="S.tool='menu';render()" class="bang" style="background:rgba(255,255,255,.08);border-radius:10px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">🛠️</button>
           <div class="bang" style="background:#1a1a2e;border-radius:10px;padding:4px 10px;font-size:12px;color:${t.accent2};border:1.5px solid ${t.accent2}44">${t.xpLabel} ${p?.xp||0}</div>
           <button onclick="startChallenge()" class="bang" style="background:linear-gradient(135deg,${t.accent2},${t.accent3});border-radius:10px;padding:4px 10px;font-size:11px;color:#fff;letter-spacing:1px">⚡ CHALLENGE</button>
         </div>
@@ -537,7 +551,10 @@ function render(){
           <button onclick="sendMessage()" style="background:linear-gradient(135deg,${t.accent3},${t.danger});border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;opacity:${S.chatInput.trim()||S.uploadedImage?1:.4}">▶</button>
         </div>
       </div>
+      ${S.tool?toolOverlayHTML():""}
+      ${S.rewardGame?rewardGameOverlayHTML():""}
     </div>`;
+    if(S.rewardGame?.active)setTimeout(launchRewardGame,100);
     const ci=document.getElementById("chat-input");
     ci.oninput=e=>{S.chatInput=e.target.value};
     ci.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey)sendMessage()};
@@ -862,6 +879,19 @@ function handleImageUpload(e){
 
 function tryParentLogin(){if(S.parentPin===(S.profile?.parentPin||"1234")){S.parentAuth=true;S.parentPin=""}render()}
 
+// ─── PROMO CODE ───
+const PROMO_CODES={"COSMODEMO":"pro","COSMOFAMILY":"family","ROCKETFUEL":"pro"};
+function tryPromoCode(code){
+  const plan=PROMO_CODES[code.toUpperCase().trim()];
+  if(plan&&S.profile){
+    S.profile.plan=plan;saveProfile(S.profile);
+    S.showPaywall=null;S.showUpgrade=false;S.showPromo=false;
+    alert("🚀 "+PLANS[plan].name+" plan activated! All features unlocked.");
+    render();return true;
+  }
+  alert("Invalid code. Please try again.");return false;
+}
+
 async function switchTheme(id){S.themeId=id;if(S.profile){S.profile.theme=id;await saveProfile(S.profile)}render()}
 function switchProfile(id){const pr=S.profiles.find(p=>p.id===id);if(pr){S.profile=pr;S.themeId=pr.theme||"space";S.screen="home";render()}}
 function tryAddProfile(from){if(canAccess("profiles")){if(from==="parent")S.parentAuth=false;S.screen="onboard";render()}else{S.showPaywall={reason:"profiles"};render()}}
@@ -873,6 +903,547 @@ function startTutorial(mode){S.tutorial={show:false,mode,step:0};render()}
 function nextTutorial(){const steps=S.tutorial.mode==="kid"?KID_TUTORIAL:PARENT_TUTORIAL;if(S.tutorial.step<steps.length-1)S.tutorial.step++;else closeTutorial();render()}
 function prevTutorial(){if(S.tutorial.step>0)S.tutorial.step--;render()}
 function closeTutorial(){S.tutorial={show:false,mode:null,step:0};render()}
+
+// ─── STUDENT TOOLS ───
+const TOOLS_LIST=[
+  {id:"calculator",icon:"🧮",name:"Calculator",desc:"Basic & scientific math"},
+  {id:"notepad",icon:"📝",name:"Notepad",desc:"Take notes while you learn"},
+  {id:"scratch",icon:"🎨",name:"Scratch Pad",desc:"Draw and sketch ideas"},
+  {id:"formulas",icon:"📐",name:"Formula Sheet",desc:"Common math & science formulas"},
+  {id:"timer",icon:"⏱️",name:"Timer",desc:"Time your practice sessions"},
+  {id:"flashcards",icon:"🃏",name:"Flashcards",desc:"Make & study flashcards"},
+];
+
+function openTool(id){S.tool=id;render();if(id==="scratch")setTimeout(initScratchPad,100);if(id==="timer")renderTimerDisplay();}
+function closeTool(){
+  if(S.toolData.timer.interval){clearInterval(S.toolData.timer.interval);S.toolData.timer.running=false}
+  S.tool=null;render();
+}
+
+function toolsMenuHTML(){
+  const t=T();
+  return`<div class="overlay" style="background:rgba(0,0,0,.88)"><div class="fade-up" style="max-width:440px;width:100%">
+    <div class="text-center" style="margin-bottom:20px">
+      <div style="font-size:44px;margin-bottom:8px">🛠️</div>
+      <div class="bang" style="font-size:26px;color:${t.accent1};letter-spacing:2px">STUDENT TOOLKIT</div>
+      <div style="color:rgba(255,255,255,.4);font-size:13px;margin-top:4px">Tools to help you learn</div>
+    </div>
+    <div class="grid-2" style="gap:10px;margin-bottom:16px">
+      ${TOOLS_LIST.map(tl=>`<button onclick="openTool('${tl.id}')" style="background:${t.card};border:2px solid ${t.accent1}33;border-radius:16px;padding:16px 12px;text-align:center;transition:all .2s">
+        <div style="font-size:32px;margin-bottom:4px">${tl.icon}</div>
+        <div style="font-weight:800;font-size:13px;color:#fff">${tl.name}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.35);margin-top:2px">${tl.desc}</div>
+      </button>`).join("")}
+    </div>
+    <button onclick="S.tool=null;closeTool();S.showTools=false;render()" style="display:block;margin:0 auto;font-size:13px;color:rgba(255,255,255,.3)">Close</button>
+  </div></div>`;
+}
+
+function toolOverlayHTML(){
+  const t=T();
+  if(S.tool==="menu")return toolsMenuHTML();
+  if(!S.tool)return"";
+  const tl=TOOLS_LIST.find(x=>x.id===S.tool);
+  let inner="";
+
+  // ─── CALCULATOR ───
+  if(S.tool==="calculator"){
+    const c=S.toolData.calc;
+    const btns=[
+      ["C","±","%","÷"],
+      ["7","8","9","×"],
+      ["4","5","6","−"],
+      ["1","2","3","+"],
+      ["0",".","⌫","="]
+    ];
+    inner=`<div style="background:#111;border-radius:16px;padding:16px;max-width:320px;margin:0 auto">
+      <div style="background:#1a1a2e;border-radius:12px;padding:16px 20px;margin-bottom:12px;text-align:right;min-height:60px;display:flex;align-items:flex-end;justify-content:flex-end">
+        <div style="font-family:'Space Mono',monospace;font-size:36px;color:#fff;word-break:break-all">${esc(c.display)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+        ${btns.flat().map(b=>{
+          const isOp=["÷","×","−","+","="].includes(b);
+          const isFunc=["C","±","%","⌫"].includes(b);
+          const bg=isOp?`linear-gradient(135deg,${t.accent3},${t.accent2})`:isFunc?"rgba(255,255,255,.12)":"rgba(255,255,255,.06)";
+          return`<button onclick="calcPress('${b}')" style="background:${bg};border:none;border-radius:10px;padding:14px 0;font-size:${b==="⌫"?"16":"20"}px;color:#fff;font-weight:700;cursor:pointer;transition:all .1s">${b}</button>`;
+        }).join("")}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:8px">
+        ${["sin","cos","tan","√","π","^"].map(f=>`<button onclick="calcSci('${f}')" style="flex:1;background:rgba(255,255,255,.06);border:none;border-radius:8px;padding:8px 0;font-size:12px;color:${t.accent1};font-weight:700;cursor:pointer">${f}</button>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  // ─── NOTEPAD ───
+  if(S.tool==="notepad"){
+    inner=`<div style="max-width:480px;margin:0 auto">
+      <textarea id="notepad-area" placeholder="Type your notes here..." style="width:100%;min-height:350px;background:rgba(0,0,0,.3);border:2px solid ${t.accent1}33;border-radius:14px;padding:16px;color:#fff;font-size:15px;line-height:1.8;outline:none;resize:vertical;font-family:'Nunito',sans-serif">${esc(S.toolData.notepad)}</textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+        <div style="font-size:11px;color:rgba(255,255,255,.3)">${S.toolData.notepad.length} characters</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="clearNotepad()" class="btn" style="background:rgba(255,255,255,.08);font-size:12px;padding:6px 14px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">Clear</button>
+          <button onclick="saveNotepad()" class="btn" style="background:linear-gradient(135deg,${t.accent1},${t.success});font-size:12px;padding:6px 14px">Save</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ─── SCRATCH PAD ───
+  if(S.tool==="scratch"){
+    inner=`<div style="max-width:480px;margin:0 auto">
+      <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;align-items:center">
+        <div style="font-size:10px;color:rgba(255,255,255,.3);margin-right:4px">Color:</div>
+        ${["#ffffff","#FF6B35","#4ECDC4","#FFD700","#E040FB","#44CF6C","#FF1744","#3B82F6"].map(c=>`<button onclick="scratchColor='${c}'" style="width:24px;height:24px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,.2);cursor:pointer"></button>`).join("")}
+        <div style="font-size:10px;color:rgba(255,255,255,.3);margin:0 4px 0 12px">Size:</div>
+        ${[2,4,8,14].map(s=>`<button onclick="scratchSize=${s}" style="width:${12+s}px;height:${12+s}px;border-radius:50%;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.15);cursor:pointer;font-size:8px;color:rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center">${s}</button>`).join("")}
+        <button onclick="clearScratch()" style="margin-left:auto;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:4px 12px;font-size:11px;color:rgba(255,255,255,.4);cursor:pointer">🗑️ Clear</button>
+      </div>
+      <canvas id="scratch-canvas" width="460" height="340" style="width:100%;border-radius:14px;border:2px solid ${t.accent1}33;background:rgba(0,0,0,.4);cursor:crosshair;touch-action:none"></canvas>
+    </div>`;
+  }
+
+  // ─── FORMULA SHEET ───
+  if(S.tool==="formulas"){
+    const sections=[
+      {title:"Geometry",formulas:[
+        {name:"Area of Rectangle",f:"A = l × w"},
+        {name:"Area of Triangle",f:"A = ½ × b × h"},
+        {name:"Area of Circle",f:"A = π × r²"},
+        {name:"Circumference",f:"C = 2 × π × r"},
+        {name:"Perimeter of Rectangle",f:"P = 2(l + w)"},
+        {name:"Volume of Rectangular Prism",f:"V = l × w × h"},
+        {name:"Volume of Cylinder",f:"V = π × r² × h"},
+        {name:"Pythagorean Theorem",f:"a² + b² = c²"},
+      ]},
+      {title:"Algebra",formulas:[
+        {name:"Slope",f:"m = (y₂ − y₁) / (x₂ − x₁)"},
+        {name:"Slope-Intercept Form",f:"y = mx + b"},
+        {name:"Quadratic Formula",f:"x = (−b ± √(b²−4ac)) / 2a"},
+        {name:"Distance Formula",f:"d = √((x₂−x₁)² + (y₂−y₁)²)"},
+      ]},
+      {title:"Conversions",formulas:[
+        {name:"Inches to Centimeters",f:"1 in = 2.54 cm"},
+        {name:"Miles to Kilometers",f:"1 mi = 1.609 km"},
+        {name:"Pounds to Kilograms",f:"1 lb = 0.454 kg"},
+        {name:"Fahrenheit to Celsius",f:"°C = (°F − 32) × 5/9"},
+      ]},
+      {title:"Statistics",formulas:[
+        {name:"Mean (Average)",f:"x̄ = sum of values / count"},
+        {name:"Probability",f:"P(event) = favorable / total"},
+      ]},
+      {title:"Science",formulas:[
+        {name:"Speed",f:"speed = distance / time"},
+        {name:"Force (Newton's 2nd Law)",f:"F = m × a"},
+        {name:"Density",f:"D = mass / volume"},
+        {name:"Kinetic Energy",f:"KE = ½ × m × v²"},
+      ]},
+    ];
+    inner=`<div style="max-width:480px;margin:0 auto;max-height:450px;overflow-y:auto">
+      ${sections.map(sec=>`<div style="margin-bottom:16px">
+        <div class="bang" style="font-size:14px;color:${t.accent2};letter-spacing:2px;margin-bottom:8px">${sec.title}</div>
+        ${sec.formulas.map(f=>`<div style="background:rgba(0,0,0,.2);border-radius:10px;padding:10px 14px;margin-bottom:4px;border:1px solid rgba(255,255,255,.06);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:13px;color:rgba(255,255,255,.6)">${f.name}</div>
+          <div style="font-family:'Space Mono',monospace;font-size:13px;color:${t.accent1};font-weight:700">${f.f}</div>
+        </div>`).join("")}
+      </div>`).join("")}
+    </div>`;
+  }
+
+  // ─── TIMER ───
+  if(S.tool==="timer"){
+    const td=S.toolData.timer;
+    const mins=Math.floor(td.seconds/60).toString().padStart(2,"0");
+    const secs=(td.seconds%60).toString().padStart(2,"0");
+    inner=`<div style="max-width:320px;margin:0 auto;text-align:center">
+      <div id="timer-display" style="font-family:'Space Mono',monospace;font-size:72px;color:#fff;margin:20px 0;letter-spacing:4px">${mins}:${secs}</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:20px">
+        <button onclick="toggleTimer()" class="btn" style="background:linear-gradient(135deg,${td.running?t.danger:t.accent1},${td.running?t.accent3:t.success});font-size:16px;padding:12px 30px">${td.running?"⏸ PAUSE":"▶ START"}</button>
+        <button onclick="resetTimer()" class="btn" style="background:rgba(255,255,255,.08);font-size:16px;padding:12px 24px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">↺ RESET</button>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.3)">Quick set:</div>
+      <div style="display:flex;gap:6px;justify-content:center;margin-top:8px">
+        ${[1,2,5,10,15,30].map(m=>`<button onclick="setTimer(${m})" style="background:rgba(255,255,255,.06);border:1px solid ${t.accent1}33;border-radius:8px;padding:6px 12px;font-size:12px;color:${t.accent1};font-weight:700;cursor:pointer">${m}m</button>`).join("")}
+      </div>
+    </div>`;
+  }
+
+  // ─── FLASHCARDS ───
+  if(S.tool==="flashcards"){
+    const fc=S.toolData.flashcards;
+    const idx=S.toolData.fcIdx;
+    const flipped=S.toolData.fcFlipped;
+    inner=`<div style="max-width:420px;margin:0 auto">
+      ${fc.length>0?`
+        <div onclick="S.toolData.fcFlipped=!S.toolData.fcFlipped;render()" style="background:${flipped?`linear-gradient(135deg,${t.accent1}22,${t.success}22)`:t.card};border:2px solid ${flipped?t.accent1:t.accent1+"44"};border-radius:20px;padding:40px 24px;text-align:center;cursor:pointer;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:all .3s;margin-bottom:12px">
+          <div style="font-size:10px;color:rgba(255,255,255,.3);margin-bottom:8px;text-transform:uppercase;letter-spacing:2px">${flipped?"ANSWER":"QUESTION"} · ${idx+1}/${fc.length}</div>
+          <div style="font-size:20px;color:#fff;font-weight:700;line-height:1.6">${esc(flipped?fc[idx].back:fc[idx].front)}</div>
+          <div style="font-size:10px;color:${t.accent1};margin-top:12px">Tap to ${flipped?"see question":"reveal answer"}</div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
+          <button onclick="prevFlashcard()" class="btn" style="background:rgba(255,255,255,.08);font-size:13px;padding:8px 20px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">← Prev</button>
+          <button onclick="shuffleFlashcards()" class="btn" style="background:rgba(255,255,255,.08);font-size:13px;padding:8px 16px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">🔀 Shuffle</button>
+          <button onclick="nextFlashcard()" class="btn" style="background:linear-gradient(135deg,${t.accent1},${t.success});font-size:13px;padding:8px 20px">Next →</button>
+        </div>
+      `:`<div style="text-align:center;padding:30px;color:rgba(255,255,255,.3)">No flashcards yet! Add some below.</div>`}
+      <div style="background:rgba(0,0,0,.2);border-radius:14px;padding:14px;border:1px solid rgba(255,255,255,.06)">
+        <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:8px">ADD FLASHCARD</div>
+        <input id="fc-front" placeholder="Question / Front side" value="${esc(S.toolData.fcFront)}" style="width:100%;padding:10px 12px;border-radius:8px;background:rgba(0,0,0,.3);border:1px solid ${t.accent1}33;color:#fff;font-size:14px;outline:none;margin-bottom:6px">
+        <input id="fc-back" placeholder="Answer / Back side" value="${esc(S.toolData.fcBack)}" style="width:100%;padding:10px 12px;border-radius:8px;background:rgba(0,0,0,.3);border:1px solid ${t.accent1}33;color:#fff;font-size:14px;outline:none;margin-bottom:8px">
+        <div style="display:flex;gap:6px">
+          <button onclick="addFlashcard()" class="btn" style="flex:1;background:linear-gradient(135deg,${t.accent1},${t.success});font-size:13px;padding:8px 0">+ Add Card</button>
+          ${fc.length?`<button onclick="clearFlashcards()" class="btn" style="background:rgba(255,255,255,.08);font-size:12px;padding:8px 14px;color:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.1)">Clear All</button>`:""}
+        </div>
+      </div>
+      ${fc.length?`<div style="font-size:11px;color:rgba(255,255,255,.25);text-align:center;margin-top:8px">${fc.length} card${fc.length>1?"s":""} in deck</div>`:""}
+    </div>`;
+  }
+
+  return`<div class="overlay" style="background:rgba(0,0,0,.92)"><div class="fade-up" style="max-width:540px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <button onclick="S.tool='menu';render()" style="background:rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);cursor:pointer">← Tools</button>
+      <div class="bang" style="font-size:18px;color:${t.accent1};letter-spacing:2px">${tl?.icon} ${tl?.name?.toUpperCase()}</div>
+      <button onclick="closeTool()" style="background:rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);cursor:pointer">✕ Close</button>
+    </div>
+    ${inner}
+  </div></div>`;
+}
+
+// ─── Calculator Logic ───
+function calcPress(b){
+  const c=S.toolData.calc;
+  if(b==="C"){c.display="0";c.prev=null;c.op=null;c.fresh=true}
+  else if(b==="⌫"){c.display=c.display.length>1?c.display.slice(0,-1):"0"}
+  else if(b==="±"){c.display=c.display.startsWith("-")?c.display.slice(1):c.display!=="0"?"-"+c.display:"0"}
+  else if(b==="%"){c.display=String(parseFloat(c.display)/100)}
+  else if(["+","−","×","÷"].includes(b)){c.prev=parseFloat(c.display);c.op=b;c.fresh=true}
+  else if(b==="="){
+    if(c.prev!==null&&c.op){
+      const cur=parseFloat(c.display);
+      let r=0;
+      if(c.op==="+")r=c.prev+cur;
+      if(c.op==="−")r=c.prev-cur;
+      if(c.op==="×")r=c.prev*cur;
+      if(c.op==="÷")r=cur!==0?c.prev/cur:"Error";
+      if(c.op==="^")r=Math.pow(c.prev,cur);
+      c.display=typeof r==="number"?String(Math.round(r*1e10)/1e10):r;
+      c.prev=null;c.op=null;c.fresh=true;
+    }
+  }
+  else{
+    if(c.fresh&&b!=="."){c.display=b;c.fresh=false}
+    else{if(b==="."&&c.display.includes("."))return;c.display+=b;c.fresh=false}
+  }
+  render();
+}
+function calcSci(f){
+  const c=S.toolData.calc;const v=parseFloat(c.display);
+  if(f==="sin")c.display=String(Math.round(Math.sin(v*Math.PI/180)*1e8)/1e8);
+  if(f==="cos")c.display=String(Math.round(Math.cos(v*Math.PI/180)*1e8)/1e8);
+  if(f==="tan")c.display=String(Math.round(Math.tan(v*Math.PI/180)*1e8)/1e8);
+  if(f==="√")c.display=v>=0?String(Math.round(Math.sqrt(v)*1e8)/1e8):"Error";
+  if(f==="π")c.display=String(Math.PI);
+  if(f==="^"){c.prev=v;c.op="^";c.fresh=true}
+  render();
+}
+
+// ─── Notepad Logic ───
+function saveNotepad(){
+  const ta=document.getElementById("notepad-area");
+  if(ta)S.toolData.notepad=ta.value;
+  save("cosmo-notepad",S.toolData.notepad);
+}
+function clearNotepad(){S.toolData.notepad="";save("cosmo-notepad","");render();}
+
+// ─── Scratch Pad Logic ───
+let scratchColor="#ffffff",scratchSize=4,scratchDrawing=false;
+function initScratchPad(){
+  const canvas=document.getElementById("scratch-canvas");if(!canvas)return;
+  const ctx=canvas.getContext("2d");
+  const rect=()=>canvas.getBoundingClientRect();
+  const getPos=(e)=>{
+    const r=rect();const t=e.touches?e.touches[0]:e;
+    return{x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)};
+  };
+  const start=(e)=>{e.preventDefault();scratchDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
+  const draw=(e)=>{if(!scratchDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.strokeStyle=scratchColor;ctx.lineWidth=scratchSize;ctx.lineCap="round";ctx.lineJoin="round";ctx.stroke()};
+  const end=()=>{scratchDrawing=false};
+  canvas.addEventListener("mousedown",start);canvas.addEventListener("mousemove",draw);canvas.addEventListener("mouseup",end);canvas.addEventListener("mouseleave",end);
+  canvas.addEventListener("touchstart",start,{passive:false});canvas.addEventListener("touchmove",draw,{passive:false});canvas.addEventListener("touchend",end);
+}
+function clearScratch(){const c=document.getElementById("scratch-canvas");if(c)c.getContext("2d").clearRect(0,0,c.width,c.height)}
+
+// ─── Timer Logic ───
+function renderTimerDisplay(){
+  const el=document.getElementById("timer-display");if(!el)return;
+  const td=S.toolData.timer;
+  const m=Math.floor(td.seconds/60).toString().padStart(2,"0");
+  const s=(td.seconds%60).toString().padStart(2,"0");
+  el.textContent=m+":"+s;
+}
+function toggleTimer(){
+  const td=S.toolData.timer;
+  if(td.running){clearInterval(td.interval);td.running=false}
+  else{td.running=true;td.interval=setInterval(()=>{td.seconds++;renderTimerDisplay()},1000)}
+  render();
+}
+function resetTimer(){const td=S.toolData.timer;clearInterval(td.interval);td.seconds=0;td.running=false;render()}
+function setTimer(mins){const td=S.toolData.timer;clearInterval(td.interval);td.seconds=mins*60;td.running=false;render()}
+
+// ─── Flashcard Logic ───
+function addFlashcard(){
+  const f=document.getElementById("fc-front");const b=document.getElementById("fc-back");
+  if(f)S.toolData.fcFront=f.value;if(b)S.toolData.fcBack=b.value;
+  if(!S.toolData.fcFront.trim()||!S.toolData.fcBack.trim())return;
+  S.toolData.flashcards.push({front:S.toolData.fcFront.trim(),back:S.toolData.fcBack.trim()});
+  S.toolData.fcFront="";S.toolData.fcBack="";S.toolData.fcIdx=S.toolData.flashcards.length-1;S.toolData.fcFlipped=false;
+  save("cosmo-flashcards",S.toolData.flashcards);render();
+}
+function nextFlashcard(){S.toolData.fcIdx=(S.toolData.fcIdx+1)%S.toolData.flashcards.length;S.toolData.fcFlipped=false;render()}
+function prevFlashcard(){S.toolData.fcIdx=(S.toolData.fcIdx-1+S.toolData.flashcards.length)%S.toolData.flashcards.length;S.toolData.fcFlipped=false;render()}
+function shuffleFlashcards(){for(let i=S.toolData.flashcards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[S.toolData.flashcards[i],S.toolData.flashcards[j]]=[S.toolData.flashcards[j],S.toolData.flashcards[i]]}S.toolData.fcIdx=0;S.toolData.fcFlipped=false;render()}
+function clearFlashcards(){S.toolData.flashcards=[];S.toolData.fcIdx=0;S.toolData.fcFlipped=false;save("cosmo-flashcards",[]);render()}
+
+// ─── REWARD GAME: COSMO BLASTER ───
+const UPGRADES=[
+  {level:1,name:"Cadet Blaster",desc:"Single shot",color:"#4ECDC4",fireRate:500,bullets:1,bulletSpeed:5,shipSpeed:4,shield:false,pierce:false,spread:0},
+  {level:2,name:"Rapid Fire",desc:"Faster shooting",color:"#44CF6C",fireRate:350,bullets:1,bulletSpeed:6,shipSpeed:4,shield:false,pierce:false,spread:0},
+  {level:3,name:"Twin Blaster",desc:"Double shot unlocked!",color:"#FFD700",fireRate:350,bullets:2,bulletSpeed:6,shipSpeed:4,shield:false,pierce:false,spread:0.15},
+  {level:4,name:"Energy Shield",desc:"Survive 1 extra hit!",color:"#3B82F6",fireRate:350,bullets:2,bulletSpeed:6,shipSpeed:5,shield:true,pierce:false,spread:0.15},
+  {level:5,name:"Triple Cannon",desc:"3-way spread shot!",color:"#E040FB",fireRate:300,bullets:3,bulletSpeed:7,shipSpeed:5,shield:true,pierce:false,spread:0.2},
+  {level:6,name:"Turbo Engines",desc:"Maximum speed!",color:"#FF6B35",fireRate:300,bullets:3,bulletSpeed:7,shipSpeed:7,shield:true,pierce:false,spread:0.2},
+  {level:7,name:"Piercing Rounds",desc:"Bullets go through rocks!",color:"#FF1744",fireRate:250,bullets:3,bulletSpeed:8,shipSpeed:7,shield:true,pierce:true,spread:0.2},
+  {level:8,name:"Mega Cannon",desc:"5-way devastation!",color:"#FFD700",fireRate:200,bullets:5,bulletSpeed:8,shipSpeed:8,shield:true,pierce:true,spread:0.15},
+];
+function getUpgrade(level){return UPGRADES[Math.min(level-1,UPGRADES.length-1)];}
+
+let gameInstance=null;
+function launchRewardGame(){
+  const t=T();const lvl=S.rewardGame?.level||1;const up=getUpgrade(lvl);
+  render(); // render the overlay first
+  setTimeout(()=>{
+    const canvas=document.getElementById("game-canvas");if(!canvas)return;
+    const ctx=canvas.getContext("2d");
+    const W=canvas.width,H=canvas.height;
+
+    // Game state
+    let ship={x:W/2,y:H-50,w:24,h:24,shield:up.shield,shieldHits:0};
+    let bullets=[];let asteroids=[];let particles=[];let stars=[];
+    let score=0;let gameOver=false;let lastFire=0;let frame=0;
+    let keys={left:false,right:false,up:false,space:false};
+
+    // Generate starfield
+    for(let i=0;i<50;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+0.5,sp:Math.random()*0.5+0.2});
+
+    // Spawn asteroids
+    function spawnAsteroid(){
+      const size=15+Math.random()*25;
+      asteroids.push({x:Math.random()*W,y:-size,size,speed:1+Math.random()*2,rot:Math.random()*Math.PI*2,rotSpeed:(Math.random()-0.5)*0.04,hp:size>25?2:1});
+    }
+
+    // Input
+    function kd(e){
+      if(e.key==="ArrowLeft"||e.key==="a")keys.left=true;
+      if(e.key==="ArrowRight"||e.key==="d")keys.right=true;
+      if(e.key==="ArrowUp"||e.key==="w")keys.up=true;
+      if(e.key===" ")keys.space=true;
+    }
+    function ku(e){
+      if(e.key==="ArrowLeft"||e.key==="a")keys.left=false;
+      if(e.key==="ArrowRight"||e.key==="d")keys.right=false;
+      if(e.key==="ArrowUp"||e.key==="w")keys.up=false;
+      if(e.key===" ")keys.space=false;
+    }
+    document.addEventListener("keydown",kd);document.addEventListener("keyup",ku);
+
+    // Touch controls
+    let touchX=null;
+    canvas.addEventListener("touchstart",(e)=>{e.preventDefault();touchX=e.touches[0].clientX;keys.space=true},{passive:false});
+    canvas.addEventListener("touchmove",(e)=>{e.preventDefault();const newX=e.touches[0].clientX;if(touchX!==null){if(newX<touchX-10)keys.left=true,keys.right=false;else if(newX>touchX+10)keys.right=true,keys.left=false;else keys.left=false,keys.right=false}touchX=newX},{passive:false});
+    canvas.addEventListener("touchend",()=>{keys.left=false;keys.right=false;keys.space=false;touchX=null});
+
+    function fire(){
+      const now=Date.now();if(now-lastFire<up.fireRate)return;lastFire=now;
+      for(let i=0;i<up.bullets;i++){
+        const angle=-Math.PI/2+(i-(up.bullets-1)/2)*up.spread;
+        bullets.push({x:ship.x,y:ship.y-12,vx:Math.sin(angle)*up.bulletSpeed,vy:Math.cos(angle)*-up.bulletSpeed,pierce:up.pierce});
+      }
+    }
+
+    function addParticles(x,y,color,count){
+      for(let i=0;i<count;i++){
+        const angle=Math.random()*Math.PI*2;const speed=Math.random()*3+1;
+        particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:30+Math.random()*20,maxLife:50,color,size:Math.random()*3+1});
+      }
+    }
+
+    function update(){
+      if(gameOver)return;frame++;
+      // Move ship
+      if(keys.left)ship.x-=up.shipSpeed;
+      if(keys.right)ship.x+=up.shipSpeed;
+      if(keys.up)ship.y-=up.shipSpeed*0.5;
+      ship.x=Math.max(12,Math.min(W-12,ship.x));
+      ship.y=Math.max(H*0.3,Math.min(H-20,ship.y));
+      if(!keys.up)ship.y=Math.min(ship.y+1,H-50);
+
+      // Fire
+      if(keys.space)fire();
+
+      // Move bullets
+      bullets.forEach(b=>{b.x+=b.vx;b.y+=b.vy});
+      bullets=bullets.filter(b=>b.x>0&&b.x<W&&b.y>0&&b.y<H);
+
+      // Spawn asteroids
+      if(frame%40===0)spawnAsteroid();
+      if(frame>300&&frame%80===0)spawnAsteroid(); // more asteroids over time
+
+      // Move asteroids
+      asteroids.forEach(a=>{a.y+=a.speed;a.rot+=a.rotSpeed});
+
+      // Collision: bullets vs asteroids
+      for(let i=asteroids.length-1;i>=0;i--){
+        const a=asteroids[i];
+        for(let j=bullets.length-1;j>=0;j--){
+          const b=bullets[j];
+          const dx=a.x-b.x,dy=a.y-b.y,dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist<a.size){
+            a.hp--;
+            if(!b.pierce)bullets.splice(j,1);
+            if(a.hp<=0){
+              score+=Math.round(a.size);
+              addParticles(a.x,a.y,up.color,8);
+              asteroids.splice(i,1);
+            }else{addParticles(a.x,a.y,"#888",3)}
+            break;
+          }
+        }
+      }
+
+      // Collision: asteroids vs ship
+      for(let i=asteroids.length-1;i>=0;i--){
+        const a=asteroids[i];
+        const dx=a.x-ship.x,dy=a.y-ship.y,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist<a.size+10){
+          if(ship.shield&&ship.shieldHits===0){
+            ship.shieldHits=1;addParticles(ship.x,ship.y,"#3B82F6",12);
+            asteroids.splice(i,1);
+          }else{
+            gameOver=true;addParticles(ship.x,ship.y,"#FF1744",20);
+          }
+        }
+      }
+
+      // Remove off-screen asteroids
+      asteroids=asteroids.filter(a=>a.y<H+50);
+
+      // Update particles
+      particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;p.vx*=0.96;p.vy*=0.96});
+      particles=particles.filter(p=>p.life>0);
+
+      // Stars
+      stars.forEach(s=>{s.y+=s.sp;if(s.y>H){s.y=0;s.x=Math.random()*W}});
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+
+      // Stars
+      stars.forEach(s=>{ctx.fillStyle=`rgba(255,255,255,${0.3+Math.sin(frame*0.02+s.x)*0.2})`;ctx.fillRect(s.x,s.y,s.s,s.s)});
+
+      // Particles
+      particles.forEach(p=>{ctx.globalAlpha=p.life/p.maxLife;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill()});
+      ctx.globalAlpha=1;
+
+      // Bullets
+      bullets.forEach(b=>{
+        ctx.fillStyle=up.color;ctx.shadowColor=up.color;ctx.shadowBlur=6;
+        ctx.fillRect(b.x-1.5,b.y-4,3,8);
+      });
+      ctx.shadowBlur=0;
+
+      // Asteroids
+      asteroids.forEach(a=>{
+        ctx.save();ctx.translate(a.x,a.y);ctx.rotate(a.rot);
+        ctx.fillStyle=a.hp>1?"#888":"#666";ctx.strokeStyle="#999";ctx.lineWidth=1.5;
+        ctx.beginPath();
+        for(let i=0;i<7;i++){const angle=(i/7)*Math.PI*2;const r=a.size*(0.7+Math.sin(i*2.5)*0.3);ctx.lineTo(Math.cos(angle)*r,Math.sin(angle)*r)}
+        ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.restore();
+      });
+
+      if(!gameOver){
+        // Ship
+        ctx.save();ctx.translate(ship.x,ship.y);
+        ctx.fillStyle=up.color;ctx.strokeStyle="#fff";ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(-10,10);ctx.lineTo(0,6);ctx.lineTo(10,10);ctx.closePath();ctx.fill();ctx.stroke();
+        // Engine glow
+        if(frame%4<2){ctx.fillStyle="#FF6B35";ctx.beginPath();ctx.moveTo(-4,8);ctx.lineTo(0,16+Math.random()*6);ctx.lineTo(4,8);ctx.fill()}
+        // Shield
+        if(ship.shield&&ship.shieldHits===0){ctx.strokeStyle="rgba(59,130,246,0.5)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.stroke();ctx.strokeStyle="rgba(59,130,246,0.2)";ctx.beginPath();ctx.arc(0,0,22,0,Math.PI*2);ctx.stroke()}
+        ctx.restore();
+      }
+
+      // HUD
+      ctx.fillStyle="#fff";ctx.font="bold 14px 'Nunito',sans-serif";ctx.textAlign="left";
+      ctx.fillText("Score: "+score,10,24);
+      ctx.textAlign="right";
+      ctx.fillStyle=up.color;ctx.fillText(up.name,W-10,24);
+      if(ship.shield){ctx.fillStyle=ship.shieldHits===0?"#3B82F6":"#FF174488";ctx.font="11px 'Nunito',sans-serif";ctx.fillText(ship.shieldHits===0?"🛡️ Shield Active":"🛡️ Shield Broken",W-10,42)}
+
+      // Game over
+      if(gameOver){
+        ctx.fillStyle="rgba(0,0,0,0.6)";ctx.fillRect(0,0,W,H);
+        ctx.fillStyle="#fff";ctx.font="bold 28px 'Bangers',cursive";ctx.textAlign="center";ctx.letterSpacing="3px";
+        ctx.fillText("MISSION COMPLETE",W/2,H/2-30);
+        ctx.font="bold 18px 'Bangers',cursive";ctx.fillStyle=up.color;
+        ctx.fillText("Score: "+score,W/2,H/2+10);
+        ctx.font="14px 'Nunito',sans-serif";ctx.fillStyle="rgba(255,255,255,0.5)";
+        ctx.fillText("Tap or press any key to continue",W/2,H/2+45);
+      }
+    }
+
+    function loop(){
+      update();draw();
+      if(!gameOver)gameInstance=requestAnimationFrame(loop);
+      else{
+        draw(); // final frame
+        const exitHandler=(e)=>{
+          e.preventDefault();
+          document.removeEventListener("keydown",kd);document.removeEventListener("keyup",ku);
+          document.removeEventListener("keydown",exitHandler);canvas.removeEventListener("touchstart",exitHandler);
+          if(gameInstance)cancelAnimationFrame(gameInstance);
+          S.rewardGame=null;render();
+        };
+        setTimeout(()=>{document.addEventListener("keydown",exitHandler);canvas.addEventListener("touchstart",exitHandler,{passive:false})},500);
+      }
+    }
+    loop();
+  },200);
+}
+
+function rewardGameOverlayHTML(){
+  if(!S.rewardGame?.active)return"";
+  const t=T();const lvl=S.rewardGame.level;const up=getUpgrade(lvl);
+  const prevUp=lvl>1?getUpgrade(lvl-1):null;
+  return`<div class="overlay" style="background:rgba(0,0,0,.95)"><div class="fade-up" style="max-width:500px;width:100%">
+    <div class="text-center" style="margin-bottom:16px">
+      <div style="font-size:48px;animation:float 2s infinite">🎮</div>
+      <div class="bang" style="font-size:32px;color:${t.accent2};letter-spacing:3px;text-shadow:0 0 20px ${t.accent2}66">LEVEL ${lvl} UNLOCKED!</div>
+      <div style="color:rgba(255,255,255,.5);font-size:14px;margin-top:4px">You earned a reward game!</div>
+    </div>
+    <div style="background:linear-gradient(135deg,${up.color}15,${up.color}05);border:2px solid ${up.color}44;border-radius:16px;padding:16px;margin-bottom:16px;text-align:center">
+      <div style="font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">NEW WEAPON</div>
+      <div class="bang" style="font-size:24px;color:${up.color};letter-spacing:2px">${up.name}</div>
+      <div style="font-size:13px;color:rgba(255,255,255,.6);margin-top:4px">${up.desc}</div>
+      ${prevUp?`<div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:8px">Upgraded from: ${prevUp.name}</div>`:""}
+    </div>
+    <canvas id="game-canvas" width="460" height="380" style="width:100%;border-radius:14px;background:#08080f;border:2px solid ${up.color}33;display:block"></canvas>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">
+      <div style="font-size:10px;color:rgba(255,255,255,.25)">Arrow keys / WASD to move · Space to shoot</div>
+      <button onclick="S.rewardGame=null;if(gameInstance)cancelAnimationFrame(gameInstance);render()" style="font-size:12px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer">Skip →</button>
+    </div>
+  </div></div>`;
+}
 
 // ─── PAYWALL & UPGRADE ───
 function paywallHTML(reason){
@@ -908,6 +1479,10 @@ function paywallHTML(reason){
       </div>`}).join("")}
     </div>
     <button onclick="S.showPaywall=null;render()" style="display:block;margin:0 auto;font-size:13px;color:rgba(255,255,255,.3)">Not now</button>
+    <div style="text-align:center;margin-top:12px">
+      <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:11px;color:rgba(255,255,255,.25);background:none;border:none;cursor:pointer">Have a promo code?</button>
+      ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-pw" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="const v=document.getElementById('promo-pw')?.value;if(v)tryPromoCode(v)" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
+    </div>
   </div></div>`;
 }
 
@@ -937,6 +1512,8 @@ function upgradeScreenHTML(){
       </div>`).join("")}
       <div class="text-center" style="margin-top:8px">
         <div style="font-size:11px;color:rgba(255,255,255,.2);line-height:1.6">Cancel anytime. 7-day free trial for new subscribers.<br>Secure payment powered by Stripe.</div>
+        <button onclick="S.showPromo=!S.showPromo;render()" style="font-size:12px;color:rgba(255,255,255,.3);background:none;border:none;cursor:pointer;margin-top:12px">🎟️ Have a promo code?</button>
+        ${S.showPromo?`<div style="display:flex;gap:6px;justify-content:center;margin-top:8px"><input id="promo-up" placeholder="Enter code" style="padding:8px 12px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);color:#fff;font-size:13px;outline:none;width:160px;text-align:center;text-transform:uppercase"><button onclick="const v=document.getElementById('promo-up')?.value;if(v)tryPromoCode(v)" class="btn" style="background:linear-gradient(135deg,#FFD700,#FF6B35);font-size:12px;padding:8px 14px">APPLY</button></div>`:""}
       </div>
     </div>
   </div>`;
@@ -957,7 +1534,10 @@ async function selectPlan(planId){
   render(); // show loading
   const profs=await load("cosmo-profiles",[]);
   const log=await load("cosmo-activity",[]);
+  const notepad=await load("cosmo-notepad","");
+  const flashcards=await load("cosmo-flashcards",[]);
   S.profiles=profs;S.activityLog=log;
+  S.toolData.notepad=notepad;S.toolData.flashcards=flashcards;
   if(profs.length>0){S.profile=profs[0];S.themeId=profs[0].theme||"space";S.screen="home"}
   else S.screen="splash";
   render();
