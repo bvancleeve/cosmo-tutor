@@ -219,7 +219,7 @@ let S = {
   subject:null, chatMessages:[], chatInput:"", isTyping:false,
   challengeQ:null, challengeSel:null, challengeResult:null,
   parentPin:"", parentAuth:false, parentTab:"overview",
-  activityLog:[], uploadedImage:null,
+  activityLog:[], uploadedImage:null, uploadedImageType:null,
   onboard:{name:"",grade:"3rd",avatar:"🦸‍♂️",avatarBaseIdx:0,avatarSkinIdx:0,avatarHairIdx:0,theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
   tutorial:{show:false,mode:null,step:0},
   parentCurrTab:"national",
@@ -629,7 +629,7 @@ function render(){
           <div style="font-size:13px;font-weight:700;color:#fff">Photo attached</div>
           <div style="font-size:10px;color:rgba(255,255,255,.4)">Send a message or tap ▶ to ask ${esc(t.name)} for help</div>
         </div>
-        <button onclick="S.uploadedImage=null;render()" style="color:${t.danger};font-size:18px;font-weight:800;padding:4px 8px;border-radius:8px;background:${t.danger}15">✕</button>
+        <button onclick="S.uploadedImage=null;S.uploadedImageType=null;render()" style="color:${t.danger};font-size:18px;font-weight:800;padding:4px 8px;border-radius:8px;background:${t.danger}15">✕</button>
       </div>`:""}
       <div style="padding:10px 14px;background:rgba(0,0,0,.5);border-top:1px solid ${t.accent1}15;position:relative;z-index:2;backdrop-filter:blur(10px)">
         <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
@@ -917,7 +917,7 @@ async function startChat(idx){
   if(!canAccess("subject",sub.label)){S.showPaywall={reason:"subject",subject:sub.label};render();return}
   // Check daily session limit
   if(!canAccess("sessions")){S.showPaywall={reason:"sessions"};render();return}
-  S.subject=sub;S.chatMessages=[];S.uploadedImage=null;S.chatInput="";S.screen="chat";render();
+  S.subject=sub;S.chatMessages=[];S.uploadedImage=null;S.uploadedImageType=null;S.chatInput="";S.screen="chat";render();
   await updateStreak();
   const p=S.profile;
   p.dailySessions=(p.dailySessions||0)+1;
@@ -939,14 +939,14 @@ async function sendMessage(){
     const redirectMsg = REDIRECT_MSG_STUDENT.replace("[SUBJECT]", S.subject?.label || "your subject");
     S.chatMessages.push({role:"user",content:text,image:S.uploadedImage||null});
     S.chatMessages.push({role:"assistant",content:redirectMsg});
-    S.chatInput="";S.uploadedImage=null;render();
+    S.chatInput="";S.uploadedImage=null;S.uploadedImageType=null;render();
     return;
   }
   
-  const userMsg={role:"user",content:text,image:S.uploadedImage||null};
-  S.chatMessages.push(userMsg);S.chatInput="";S.uploadedImage=null;S.isTyping=true;render();
+  const userMsg={role:"user",content:text,image:S.uploadedImage||null,imageType:S.uploadedImageType||"image/jpeg"};
+  S.chatMessages.push(userMsg);S.chatInput="";S.uploadedImage=null;S.uploadedImageType=null;S.isTyping=true;render();
   const t=T(),p=S.profile;
-  const apiMsgs=S.chatMessages.map(m=>({role:m.role,content:m.image?[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:m.image}},{type:"text",text:m.content||"Help me with this image"}]:m.content}));
+  const apiMsgs=S.chatMessages.map(m=>({role:m.role,content:m.image?[{type:"image",source:{type:"base64",media_type:m.imageType||"image/jpeg",data:m.image}},{type:"text",text:m.content||"Help me with this image"}]:m.content}));
   const sys=t.sysPrompt+` Subject: ${S.subject?.label}. Student grade: ${p?.grade||"unknown"}. Student name: ${p?.name||"student"}.${currPrompt(p?.standards,p?.studentState)} If they get an answer right, say so enthusiastically. If wrong, guide them gently. Keep responses concise. IMPORTANT: Stay strictly on the topic of ${S.subject?.label}. If the student goes off-topic, gently redirect them back.`;
   const reply=await askAI(apiMsgs,sys);
   S.chatMessages.push({role:"assistant",content:reply});S.isTyping=false;
@@ -983,11 +983,31 @@ function handleImageUpload(e){
   const file=e.target.files?.[0];if(!file)return;
   resetDailyCountsIfNeeded();
   if(!canAccess("photos")){S.showPaywall={reason:"photos"};e.target.value="";render();return}
-  const r=new FileReader();r.onload=ev=>{
-    S.uploadedImage=ev.target.result.split(",")[1];
-    if(S.profile)S.profile.dailyPhotos=(S.profile.dailyPhotos||0)+1;
-    render();
-  };r.readAsDataURL(file);
+  // Resize image to max 800px and compress as JPEG for API compatibility
+  const img=new Image();
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    img.onload=()=>{
+      const maxSize=800;
+      let w=img.width,h=img.height;
+      if(w>maxSize||h>maxSize){
+        if(w>h){h=Math.round(h*(maxSize/w));w=maxSize}
+        else{w=Math.round(w*(maxSize/h));h=maxSize}
+      }
+      const canvas=document.createElement("canvas");
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext("2d");
+      ctx.drawImage(img,0,0,w,h);
+      const dataUrl=canvas.toDataURL("image/jpeg",0.8);
+      S.uploadedImage=dataUrl.split(",")[1];
+      S.uploadedImageType="image/jpeg";
+      if(S.profile)S.profile.dailyPhotos=(S.profile.dailyPhotos||0)+1;
+      render();
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value="";
 }
 
 function tryParentLogin(){if(S.parentPin===(S.profile?.parentPin||"1234")){S.parentAuth=true;S.parentPin=""}render()}
