@@ -90,11 +90,13 @@ const HAIR_STYLES=[
 const AVATAR_BASES=[
   {id:"hero_m",base:"🦸‍♂️",skinBase:"\u{1F9B8}",genderZwj:"\u200D\u2642\uFE0F",label:"Hero",supportsSkin:true,supportsHair:false,free:true},
   {id:"hero_f",base:"🦸‍♀️",skinBase:"\u{1F9B8}",genderZwj:"\u200D\u2640\uFE0F",label:"Heroine",supportsSkin:true,supportsHair:false,free:true},
+  {id:"man",base:"👨",skinBase:"\u{1F468}",genderZwj:"",label:"Man",supportsSkin:true,supportsHair:true,free:false},
+  {id:"woman",base:"👩",skinBase:"\u{1F469}",genderZwj:"",label:"Woman",supportsSkin:true,supportsHair:true,free:false},
+  {id:"person",base:"🧑",skinBase:"\u{1F9D1}",genderZwj:"",label:"Person",supportsSkin:true,supportsHair:true,free:false},
   {id:"astro",base:"🧑‍🚀",skinBase:"\u{1F9D1}",genderZwj:"\u200D\u{1F680}",label:"Astronaut",supportsSkin:true,supportsHair:false,free:false},
   {id:"wizard",base:"🧙",skinBase:"\u{1F9D9}",genderZwj:"",label:"Wizard",supportsSkin:true,supportsHair:false,free:false},
   {id:"ninja",base:"🥷",skinBase:"\u{1F977}",genderZwj:"",label:"Ninja",supportsSkin:true,supportsHair:false,free:false},
   {id:"artist",base:"🧑‍🎨",skinBase:"\u{1F9D1}",genderZwj:"\u200D\u{1F3A8}",label:"Artist",supportsSkin:true,supportsHair:false,free:false},
-  {id:"person",base:"🧑",skinBase:"\u{1F9D1}",genderZwj:"",label:"Person",supportsSkin:true,supportsHair:true,free:false},
   {id:"girl",base:"👧",skinBase:"\u{1F467}",genderZwj:"",label:"Girl",supportsSkin:true,supportsHair:false,free:false},
   {id:"boy",base:"👦",skinBase:"\u{1F466}",genderZwj:"",label:"Boy",supportsSkin:true,supportsHair:false,free:false},
   {id:"fox",base:"🦊",label:"Fox",supportsSkin:false,supportsHair:false,free:false},
@@ -179,7 +181,7 @@ const PLANS = {
     id:"family",name:"Family",price:"$9.99",priceNum:9.99,period:"/month",
     color:"#4ECDC4",badge:"⭐",
     limits:{sessionsPerDay:999,challengesPerDay:999,photoUploads:999,profiles:4,subjects:null,worlds:null,avatarBases:null},
-    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 14 avatars with skin tones & hair styles","Detailed parent analytics","Priority AI responses"]
+    features:["Unlimited tutoring sessions","Unlimited challenges","Unlimited homework photo scans","All 6 subjects","Up to 4 student profiles","All 5 themed worlds","All 16 avatars with skin tones & hair styles","Detailed parent analytics","Priority AI responses"]
   },
   pro: {
     id:"pro",name:"Pro",price:"$14.99",priceNum:14.99,period:"/month",
@@ -221,7 +223,7 @@ let S = {
   parentPin:"", parentAuth:false, parentTab:"overview",
   activityLog:[], uploadedImage:null, uploadedImageType:null,
   hints:{active:false,count:0,maxXP:25,problemId:null},
-  onboard:{name:"",grade:"3rd",avatar:"🦸‍♂️",avatarBaseIdx:0,avatarSkinIdx:0,avatarHairIdx:0,theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national"},
+  onboard:{name:"",grade:"3rd",avatar:"🦸‍♂️",avatarBaseIdx:0,avatarSkinIdx:0,avatarHairIdx:0,theme:"space",pin:"1234",standards:["common_core"],state:"",currTab:"national",needs:[],needsOther:"",ttsEnabled:false},
   tutorial:{show:false,mode:null,step:0},
   parentCurrTab:"national",
   showUpgrade:false, showPaywall:null, showPromo:false,
@@ -254,6 +256,60 @@ const BLOCKED_PATTERNS = [
 
 const REDIRECT_MSG_STUDENT = "Whoa there! 🚀 Let's keep our brains locked onto learning. What [SUBJECT] question can I help you with?";
 const REDIRECT_MSG_OUTPUT = "Oops — let me get back on track! What are we working on? I'm ready to help with [SUBJECT]! 💪";
+
+// ─── LEARNING NEEDS & ACCESSIBILITY ───
+const LEARNING_NEEDS=[
+  {id:"dyslexia",label:"Dyslexia",icon:"📖",desc:"Reading & spelling difficulty",
+   prompt:"The student has dyslexia. Use shorter sentences. Avoid dense text blocks. Bold or emphasize key terms. Break words into syllables when teaching spelling. Use visual examples and analogies. Be patient with reading-related tasks."},
+  {id:"adhd",label:"ADHD",icon:"⚡",desc:"Attention & focus challenges",
+   prompt:"The student has ADHD. Keep responses VERY short (1-2 sentences). Use bullet-style responses. Add encouragement frequently. Break tasks into tiny steps. Use emojis to maintain visual interest. Celebrate micro-wins. Ask one question at a time, never multiple."},
+  {id:"dyscalculia",label:"Dyscalculia",icon:"🔢",desc:"Math processing difficulty",
+   prompt:"The student has dyscalculia. Use visual representations of numbers (like dots or blocks). Relate math to real-world objects. Avoid abstract notation when possible. Show step-by-step with concrete examples. Use number lines and counting strategies."},
+  {id:"asd",label:"Autism Spectrum",icon:"🧩",desc:"Communication & sensory needs",
+   prompt:"The student is on the autism spectrum. Be very literal and clear — avoid sarcasm, idioms, or figurative language. Give explicit instructions. Maintain consistent structure in your responses. Warn before changing topics. Use predictable patterns."},
+  {id:"visual",label:"Visual Impairment",icon:"👁️",desc:"Low vision or blindness",
+   prompt:"The student has a visual impairment. Describe everything in words — never rely on visual-only content. When referencing images, describe them in detail. Use clear, structured text. Avoid saying 'look at' or 'see' — say 'consider' or 'notice'. All content must be fully accessible through text/audio."},
+  {id:"auditory",label:"Hearing Impairment",icon:"👂",desc:"Hard of hearing or deaf",
+   prompt:"The student has a hearing impairment. Focus on written/visual learning. Use clear, well-structured text. Provide visual examples. Avoid references to sounds or listening activities unless providing alternatives."},
+  {id:"speech",label:"Speech/Language",icon:"💬",desc:"Speech or language disorder",
+   prompt:"The student has a speech or language processing challenge. Use simple, clear language. Give extra time for responses. Don't correct grammar — focus on understanding their meaning. Rephrase complex ideas in simpler ways."},
+  {id:"gifted",label:"Gifted/Advanced",icon:"🌟",desc:"Above grade level",
+   prompt:"The student is gifted/advanced. Provide more challenging content above their grade level. Encourage deeper thinking with 'why' and 'what if' questions. Offer extension problems. Don't over-simplify — they can handle complexity."},
+  {id:"esl",label:"English Learner (EL)",icon:"🌍",desc:"English as second language",
+   prompt:"The student is an English Language Learner. Use simpler vocabulary. Define new terms when you use them. Use visual context clues. Be patient with grammar. Consider providing key terms in both English and their home language if known."},
+  {id:"other",label:"Other",icon:"📝",desc:"Specify custom needs",
+   prompt:""},
+];
+
+function buildAccessibilityPrompt(needs,needsOther){
+  if(!needs||!needs.length)return"";
+  let parts=needs.map(nid=>{
+    const need=LEARNING_NEEDS.find(n=>n.id===nid);
+    if(!need)return"";
+    if(nid==="other"&&needsOther)return"Additional learning need: "+needsOther+". Adapt your teaching style accordingly.";
+    return need.prompt;
+  }).filter(Boolean);
+  if(!parts.length)return"";
+  return"\n\nACCESSIBILITY ACCOMMODATIONS (MANDATORY — adapt ALL responses to these needs):\n"+parts.join("\n");
+}
+
+// ─── TEXT-TO-SPEECH ───
+let ttsUtterance=null;
+function speak(text){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const clean=text.replace(/[🎯🚀💪✨⭐🔥💫🌟🏆⚽🏀💃🎵🎶🐠🐙🌊💎🫧🌿🦜🍃👋📚📷⚡📡📊📅👥🔒✅🧮📖🔬🌍⚽🎮💡✏️🛠️❓📸📐⏱️🃏🎨📝]/g,"").replace(/\s+/g," ").trim();
+  ttsUtterance=new SpeechSynthesisUtterance(clean);
+  ttsUtterance.rate=0.9;
+  ttsUtterance.pitch=1.0;
+  // Try to find a good voice
+  const voices=window.speechSynthesis.getVoices();
+  const preferred=voices.find(v=>v.name.includes("Samantha"))||voices.find(v=>v.name.includes("Google")&&v.lang.startsWith("en"))||voices.find(v=>v.lang.startsWith("en"));
+  if(preferred)ttsUtterance.voice=preferred;
+  window.speechSynthesis.speak(ttsUtterance);
+}
+function stopSpeaking(){if(window.speechSynthesis)window.speechSynthesis.cancel()}
+function speakChallenge(){if(S.challengeQ)speak(S.challengeQ.question+". Options: "+(S.challengeQ.options||[]).join(". "))}
 
 const HINT_PROMPT = `IMPORTANT HINT MODE RULES:
 The student has uploaded a homework photo. You MUST follow these rules:
@@ -507,6 +563,29 @@ function render(){
             </button>`}).join("")}
         </div>
         ${S.onboard.standards.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px">${S.onboard.standards.map(sid=>{const std=[...CURRICULUM.national,...CURRICULUM.states,...CURRICULUM.international].find(c=>c.id===sid);return std?`<div class="chip" style="background:${ot.accent1}22;color:${ot.accent1};border:1px solid ${ot.accent1}44">${std.abbr||std.label}<button onclick="removeOnboardStd('${sid}')" style="color:${ot.accent1};font-size:12px;font-weight:800;margin-left:2px">×</button></div>`:""}).join("")}</div>`:""}
+
+        <label style="color:${ot.accent1};font-weight:800;font-size:13px;display:block;margin-bottom:6px">🧠 LEARNING NEEDS <span style="font-weight:400;color:rgba(255,255,255,.3)">(optional — parents only)</span></label>
+        <div style="color:rgba(255,255,255,.4);font-size:11px;margin-bottom:10px;line-height:1.5">Select any learning accommodations so ${S.onboard.name||"your child"}'s tutor adapts its teaching style. This info stays private.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+          ${LEARNING_NEEDS.map(n=>{const sel=S.onboard.needs.includes(n.id);return`<button onclick="toggleOnboardNeed('${n.id}')" style="display:flex;align-items:center;gap:8px;text-align:left;background:${sel?ot.accent1+"15":"rgba(255,255,255,.03)"};border:1.5px solid ${sel?ot.accent1:"rgba(255,255,255,.08)"};border-radius:10px;padding:8px 10px;transition:all .15s">
+            <span style="font-size:18px">${n.icon}</span>
+            <div><div style="font-size:11px;font-weight:700;color:${sel?"#fff":"rgba(255,255,255,.5)"}">${n.label}</div><div style="font-size:8px;color:rgba(255,255,255,.3)">${n.desc}</div></div>
+          </button>`}).join("")}
+        </div>
+        ${S.onboard.needs.includes("other")?`<input id="ob-needs-other" placeholder="Describe your child's learning needs..." value="${esc(S.onboard.needsOther)}" style="width:100%;padding:10px 14px;border-radius:10px;border:1.5px solid ${ot.accent1}33;background:rgba(0,0,0,.3);color:#fff;font-size:13px;outline:none;margin-bottom:10px">`:""}
+        ${S.onboard.needs.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${S.onboard.needs.map(nid=>{const n=LEARNING_NEEDS.find(x=>x.id===nid);return n?`<div class="chip" style="background:${ot.accent1}22;color:${ot.accent1};border:1px solid ${ot.accent1}44">${n.icon} ${n.label}<button onclick="toggleOnboardNeed('${nid}')" style="color:${ot.accent1};font-size:12px;font-weight:800;margin-left:4px">×</button></div>`:""}).join("")}</div>`:""}
+
+        <div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border-radius:12px;padding:12px;border:1px solid ${ot.accent1}22;margin-bottom:16px">
+          <span style="font-size:22px">🔊</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:#fff">Read Aloud</div>
+            <div style="font-size:10px;color:rgba(255,255,255,.35)">Tutor reads all responses out loud using text-to-speech</div>
+          </div>
+          <button onclick="S.onboard.ttsEnabled=!S.onboard.ttsEnabled;render()" style="width:48px;height:26px;border-radius:13px;background:${S.onboard.ttsEnabled?ot.accent1:"rgba(255,255,255,.15)"};border:none;cursor:pointer;position:relative;transition:all .2s">
+            <div style="width:22px;height:22px;border-radius:50%;background:#fff;position:absolute;top:2px;${S.onboard.ttsEnabled?"right:2px":"left:2px"};transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div>
+          </button>
+        </div>
+
         <label style="color:${ot.accent2};font-weight:800;font-size:13px;display:block;margin-bottom:6px">📡 PARENT PIN (4 digits)</label>
         <input id="ob-pin" type="text" maxlength="4" placeholder="1234" value="${esc(S.onboard.pin)}" style="width:120px;padding:10px 16px;border-radius:12px;border:2px solid ${ot.accent2}44;background:rgba(0,0,0,.3);color:#fff;font-size:20px;font-family:'Space Mono',monospace;text-align:center;margin-bottom:24px;outline:none;letter-spacing:8px">
         <div class="text-center">
@@ -518,6 +597,7 @@ function render(){
     document.getElementById("ob-name").oninput=e=>{S.onboard.name=e.target.value};
     document.getElementById("ob-pin").oninput=e=>{S.onboard.pin=e.target.value.replace(/\D/g,"").slice(0,4)};
     document.getElementById("ob-state").onchange=e=>{S.onboard.state=e.target.value;const stStd=CURRICULUM.states.find(s=>s.state===e.target.value);if(stStd&&!S.onboard.standards.includes(stStd.id)){S.onboard.standards=S.onboard.standards.filter(s=>!CURRICULUM.states.find(st=>st.id===s));S.onboard.standards.push(stStd.id)}render()};
+    const needsOtherEl=document.getElementById("ob-needs-other");if(needsOtherEl)needsOtherEl.oninput=e=>{S.onboard.needsOther=e.target.value};
     return;
   }
 
@@ -607,6 +687,7 @@ function render(){
           <span class="bang" style="color:${sub?.color||t.accent1};font-size:14px">${sub?.emoji} ${sub?.label}</span>
         </div>
         <div class="flex-gap">
+          <button onclick="if(S.profile){S.profile.ttsEnabled=!S.profile.ttsEnabled;saveProfile(S.profile);if(!S.profile.ttsEnabled)stopSpeaking();render()}" style="background:${p?.ttsEnabled?"linear-gradient(135deg,"+t.accent1+","+t.success+")":"rgba(255,255,255,.08)"};border-radius:10px;padding:4px 10px;font-size:11px;color:${p?.ttsEnabled?"#fff":"rgba(255,255,255,.4)"};border:1px solid ${p?.ttsEnabled?t.accent1:"rgba(255,255,255,.1)"}">${p?.ttsEnabled?"🔊":"🔇"}</button>
           <button onclick="S.tool='menu';render()" class="bang" style="background:rgba(255,255,255,.08);border-radius:10px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1)">🛠️</button>
           <div class="bang" style="background:#1a1a2e;border-radius:10px;padding:4px 10px;font-size:12px;color:${t.accent2};border:1.5px solid ${t.accent2}44">${t.xpLabel} ${p?.xp||0}</div>
           <button onclick="startChallenge()" class="bang" style="background:linear-gradient(135deg,${t.accent2},${t.accent3});border-radius:10px;padding:4px 10px;font-size:11px;color:#fff;letter-spacing:1px">⚡ CHALLENGE</button>
@@ -616,7 +697,10 @@ function render(){
         ${S.chatMessages.map((m,i)=>m.role==="assistant"?
           `<div class="flex-gap fade-up" style="gap:8px;margin-bottom:12px;align-items:flex-start">
             <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,${t.accent1},${t.success});display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${t.avatar}</div>
-            <div style="max-width:78%;background:${t.chatBubbleBot};border-radius:14px 14px 14px 4px;padding:10px 14px;font-size:14px;color:rgba(255,255,255,.85);line-height:1.6;border:1px solid ${t.accent1}15;white-space:pre-wrap">${esc(m.content)}</div>
+            <div style="max-width:78%">
+              <div style="background:${t.chatBubbleBot};border-radius:14px 14px 14px 4px;padding:10px 14px;font-size:14px;color:rgba(255,255,255,.85);line-height:1.6;border:1px solid ${t.accent1}15;white-space:pre-wrap">${esc(m.content)}</div>
+              <button onclick="speak(S.chatMessages[${i}].content)" style="background:none;border:none;padding:2px 6px;margin-top:2px;font-size:14px;cursor:pointer;opacity:.4;transition:opacity .2s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4" title="Read aloud">🔊</button>
+            </div>
           </div>`:
           `<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;align-items:flex-start" class="fade-up">
             <div style="max-width:78%">${m.image?`<div style="margin-bottom:6px;border-radius:10px;overflow:hidden;border:2px solid ${t.accent1}33"><img src="data:image/jpeg;base64,${m.image}" style="width:100%;max-height:200px;object-fit:cover"></div>`:""}
@@ -721,7 +805,7 @@ function render(){
         !S.challengeResult?`<div class="fade-up">
           <div style="background:${t.card};border-radius:16px;padding:16px;margin-bottom:16px;border:1.5px solid ${t.accent1}22">
             <div class="mono" style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">${q.subject?.label||"Challenge"}</div>
-            <div style="font-size:16px;font-weight:700;line-height:1.6">${esc(q.question)}</div>
+            <div style="display:flex;align-items:flex-start;gap:8px"><div style="font-size:16px;font-weight:700;line-height:1.6;flex:1">${esc(q.question)}</div><button onclick="speakChallenge()" style="background:none;border:none;font-size:18px;cursor:pointer;flex-shrink:0;padding:2px" title="Read aloud">🔊</button></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
             ${(q.options||[]).map((o,i)=>`<button onclick="S.challengeSel=${i};render()" style="background:${S.challengeSel===i?t.accent1+"22":"rgba(255,255,255,.04)"};border:2px solid ${S.challengeSel===i?t.accent1:"rgba(255,255,255,.08)"};border-radius:12px;padding:12px 16px;font-size:14px;text-align:left;color:${S.challengeSel===i?"#fff":"rgba(255,255,255,.6)"};font-weight:${S.challengeSel===i?700:400};transition:all .2s">${esc(o)}</button>`).join("")}
@@ -830,8 +914,20 @@ function render(){
             </select>
           </div>
         </div>
+        <div style="background:rgba(255,255,255,.04);border-radius:14px;padding:20px;border:1px solid #A855F722;margin-bottom:16px">
+          <div style="font-weight:800;color:#A855F7;font-size:13px;margin-bottom:4px">🧠 LEARNING ACCOMMODATIONS</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.35);margin-bottom:12px">The AI tutor adapts its teaching style based on these selections.</div>
+          ${p?.needs?.length?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">${p.needs.map(nid=>{const n=LEARNING_NEEDS.find(x=>x.id===nid);return n?`<div class="chip" style="background:#A855F715;border:1px solid #A855F733;padding:6px 12px"><span style="margin-right:4px">${n.icon}</span><span style="font-size:12px;font-weight:700;color:#A855F7">${n.label}</span><button onclick="toggleProfileNeed('${nid}')" style="color:#FF5252;font-size:14px;font-weight:800;margin-left:6px">×</button></div>`:""}).join("")}</div>`:`<div style="background:rgba(255,255,255,.04);border-radius:10px;padding:12px;text-align:center;margin-bottom:12px;border:1px dashed rgba(255,255,255,.1)"><div style="font-size:12px;color:rgba(255,255,255,.3)">No accommodations set</div></div>`}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:10px">
+            ${LEARNING_NEEDS.map(n=>{const sel=p?.needs?.includes(n.id);return`<button onclick="toggleProfileNeed('${n.id}')" style="display:flex;align-items:center;gap:6px;text-align:left;background:${sel?"#A855F715":"transparent"};border:1px solid ${sel?"#A855F7":"rgba(255,255,255,.06)"};border-radius:8px;padding:6px 8px"><span style="font-size:14px">${n.icon}</span><div style="font-size:10px;color:${sel?"#A855F7":"rgba(255,255,255,.4)"};font-weight:${sel?700:400}">${n.label}</div></button>`}).join("")}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.2);border-radius:10px;padding:10px;border:1px solid rgba(255,255,255,.06)">
+            <span style="font-size:18px">🔊</span>
+            <div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff">Read Aloud</div><div style="font-size:9px;color:rgba(255,255,255,.3)">Auto-read all tutor responses</div></div>
+            <button onclick="if(S.profile){S.profile.ttsEnabled=!S.profile.ttsEnabled;saveProfile(S.profile);render()}" style="width:44px;height:24px;border-radius:12px;background:${p?.ttsEnabled?"#A855F7":"rgba(255,255,255,.15)"};border:none;cursor:pointer;position:relative;transition:all .2s"><div style="width:20px;height:20px;border-radius:50%;background:#fff;position:absolute;top:2px;${p?.ttsEnabled?"right:2px":"left:2px"};transition:all .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)"></div></button>
+          </div>
+        </div>
         <div style="background:rgba(255,255,255,.04);border-radius:14px;padding:20px;border:1px solid rgba(255,255,255,.08)">
-          <div style="font-weight:800;color:rgba(255,255,255,.6);font-size:13px;margin-bottom:12px">SAFETY & PRIVACY</div>
           <div style="font-size:13px;color:rgba(255,255,255,.5);line-height:1.8">All AI conversations are filtered for age-appropriate content. No personal data is shared externally. Chat history is stored locally. Parent PIN protects dashboard access.</div>
         </div>
       </div>`;
@@ -948,10 +1044,11 @@ function pickAvatarHair(idx){
 
 function toggleOnboardStd(id){S.onboard.standards.includes(id)?S.onboard.standards=S.onboard.standards.filter(s=>s!==id):S.onboard.standards.push(id);render()}
 function removeOnboardStd(id){S.onboard.standards=S.onboard.standards.filter(s=>s!==id);render()}
+function toggleOnboardNeed(id){S.onboard.needs.includes(id)?S.onboard.needs=S.onboard.needs.filter(s=>s!==id):S.onboard.needs.push(id);render()}
 
 async function createProfile(){
   if(!S.onboard.name.trim())return;
-  const prof={id:Date.now().toString(),name:S.onboard.name.trim(),grade:S.onboard.grade,avatar:S.onboard.avatar,theme:S.onboard.theme,xp:0,level:1,streak:0,lastActive:null,parentPin:S.onboard.pin||"1234",totalSessions:0,standards:S.onboard.standards,studentState:S.onboard.state,plan:S.pendingPlan||"free",created:Date.now()};
+  const prof={id:Date.now().toString(),name:S.onboard.name.trim(),grade:S.onboard.grade,avatar:S.onboard.avatar,theme:S.onboard.theme,xp:0,level:1,streak:0,lastActive:null,parentPin:S.onboard.pin||"1234",totalSessions:0,standards:S.onboard.standards,studentState:S.onboard.state,needs:S.onboard.needs,needsOther:S.onboard.needsOther,ttsEnabled:S.onboard.ttsEnabled,plan:S.pendingPlan||"free",created:Date.now()};
   S.pendingPlan=null;
   S.profiles.push(prof);S.profile=prof;S.themeId=S.onboard.theme;
   await save("cosmo-profiles",S.profiles);
@@ -974,9 +1071,11 @@ async function startChat(idx){
   p.dailySessions=(p.dailySessions||0)+1;
   const gradeText=p?`The student is in grade ${p.grade} (name: ${p.name}).`:"";
   const currText=currPrompt(p?.standards,p?.studentState);
+  const accessText=buildAccessibilityPrompt(p?.needs,p?.needsOther);
   const t=T();
-  const intro=await askAI([{role:"user",content:`${gradeText}${currText} We're starting a ${sub.label} session. Give a short enthusiastic greeting and ask what they'd like to work on within ${sub.label}. Keep it to 2 sentences max. Stay focused on ${sub.label} only.`}],t.sysPrompt);
+  const intro=await askAI([{role:"user",content:`${gradeText}${currText}${accessText} We're starting a ${sub.label} session. Give a short enthusiastic greeting and ask what they'd like to work on within ${sub.label}. Keep it to 2 sentences max. Stay focused on ${sub.label} only.`}],t.sysPrompt);
   S.chatMessages=[{role:"assistant",content:intro}];
+  if(p?.ttsEnabled)setTimeout(()=>speak(intro),300);
   if(p){p.totalSessions=(p.totalSessions||0)+1;await saveProfile(p)}
   render();
 }
@@ -1011,7 +1110,7 @@ async function sendMessage(hintAction){
   const apiMsgs=S.chatMessages.map(m=>({role:m.role,content:m.image?[{type:"image",source:{type:"base64",media_type:m.imageType||"image/jpeg",data:m.image}},{type:"text",text:m.content||"Help me with this image"}]:m.content}));
   
   // Build system prompt — add hint rules when in hint mode
-  let sys=t.sysPrompt+` Subject: ${S.subject?.label}. Student grade: ${p?.grade||"unknown"}. Student name: ${p?.name||"student"}.${currPrompt(p?.standards,p?.studentState)} Keep responses concise. Stay on topic.`;
+  let sys=t.sysPrompt+` Subject: ${S.subject?.label}. Student grade: ${p?.grade||"unknown"}. Student name: ${p?.name||"student"}.${currPrompt(p?.standards,p?.studentState)}${buildAccessibilityPrompt(p?.needs,p?.needsOther)} Keep responses concise. Stay on topic.`;
   if(S.hints.active){
     sys+="\n\n"+HINT_PROMPT+`\n\nThis is hint #${S.hints.count+1}. The student has used ${S.hints.count} hint(s) so far. ${S.hints.count===0?"Start by looking at the image and asking which problem they want help with.":S.hints.count<=2?"Give a guiding hint — help them think, don't solve.":"They've had several hints. Be more specific but still encourage them to try."}`;
   }else{
@@ -1020,6 +1119,7 @@ async function sendMessage(hintAction){
   
   const reply=await askAI(apiMsgs,sys);
   S.chatMessages.push({role:"assistant",content:reply});S.isTyping=false;
+  if(S.profile?.ttsEnabled)setTimeout(()=>speak(reply),200);
   
   // XP: less for hints, more for independent work
   if(S.hints.active){
@@ -1044,9 +1144,11 @@ async function startChallenge(){
   await updateStreak();
   const sub=S.subject||SUBJECTS[0],p=S.profile,t=T();
   const currNote=p?.standards?.length?` The question MUST align to: ${currLabel(p.standards)}.${p.studentState?" Student is in "+p.studentState+".":""}`:"";
-  const prompt=`Generate a ${sub.label} multiple choice question for a ${p?.grade||"3rd"} grader.${currNote} Respond ONLY in this exact JSON format, nothing else:\n{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"..."}\nWhere "correct" is the 0-based index of the right answer.`;
+  const accessNote=p?.needs?.length?` Accommodate these learning needs: ${p.needs.map(nid=>{const n=LEARNING_NEEDS.find(x=>x.id===nid);return n?n.label:""}).filter(Boolean).join(", ")}. Keep questions clear and accessible.`:"";
+  const prompt=`Generate a ${sub.label} multiple choice question for a ${p?.grade||"3rd"} grader.${currNote}${accessNote} Respond ONLY in this exact JSON format, nothing else:\n{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"..."}\nWhere "correct" is the 0-based index of the right answer.`;
   const raw=await askAI([{role:"user",content:prompt}],"You are a quiz generator for children. Respond ONLY with valid JSON. No markdown, no backticks. All questions must be age-appropriate and educational. Never generate questions about violence, drugs, sex, or any inappropriate topic.");
   try{const cl=raw.replace(/```json?\n?/g,"").replace(/```/g,"").trim();S.challengeQ={...JSON.parse(cl),subject:sub}}catch{S.challengeQ={question:"What is 7 × 8?",options:["A) 54","B) 56","C) 48","D) 64"],correct:1,explanation:"7 × 8 = 56",subject:sub}}
+  if(p?.ttsEnabled&&S.challengeQ)setTimeout(()=>speak(S.challengeQ.question+". "+S.challengeQ.options.join(". ")),300);
   render();
 }
 
@@ -1120,6 +1222,7 @@ function tryAddProfile(from){if(canAccess("profiles")){if(from==="parent")S.pare
 
 async function removeProfileStd(sid){S.profile.standards=S.profile.standards.filter(s=>s!==sid);await saveProfile(S.profile);render()}
 async function addProfileStd(sid){if(S.profile.standards?.includes(sid))return;S.profile.standards=[...(S.profile.standards||[]),sid];await saveProfile(S.profile);render()}
+async function toggleProfileNeed(nid){if(!S.profile)return;S.profile.needs=S.profile.needs||[];S.profile.needs.includes(nid)?S.profile.needs=S.profile.needs.filter(n=>n!==nid):S.profile.needs.push(nid);await saveProfile(S.profile);render()}
 
 function startTutorial(mode){S.tutorial={show:false,mode,step:0};render()}
 function nextTutorial(){const steps=S.tutorial.mode==="kid"?KID_TUTORIAL:PARENT_TUTORIAL;if(S.tutorial.step<steps.length-1)S.tutorial.step++;else closeTutorial();render()}
