@@ -70,6 +70,57 @@ const SUBJECTS = [
   {label:"Free Mode",emoji:"🚀",color:"#F59E0B",desc:"Any school or learning topic!"}
 ];
 
+const TOPIC_SUGGESTIONS={
+  "Math":[
+    {label:"Addition & Subtraction",emoji:"➕"},
+    {label:"Multiplication & Division",emoji:"✖️"},
+    {label:"Fractions & Decimals",emoji:"🥧"},
+    {label:"Word Problems",emoji:"📝"},
+    {label:"Geometry & Shapes",emoji:"📐"},
+    {label:"Telling Time & Money",emoji:"🕐"},
+  ],
+  "Reading":[
+    {label:"Vocabulary Builder",emoji:"📚"},
+    {label:"Reading Comprehension",emoji:"🔍"},
+    {label:"Spelling Practice",emoji:"✏️"},
+    {label:"Grammar Help",emoji:"📖"},
+    {label:"Creative Writing",emoji:"🖊️"},
+    {label:"Book Report Help",emoji:"📕"},
+  ],
+  "Science":[
+    {label:"Animals & Nature",emoji:"🦋"},
+    {label:"Space & Planets",emoji:"🪐"},
+    {label:"The Human Body",emoji:"🫀"},
+    {label:"Weather & Climate",emoji:"🌦️"},
+    {label:"Plants & Ecosystems",emoji:"🌱"},
+    {label:"Simple Experiments",emoji:"🧪"},
+  ],
+  "Social Studies":[
+    {label:"US History",emoji:"🇺🇸"},
+    {label:"World Geography",emoji:"🗺️"},
+    {label:"Famous People",emoji:"👤"},
+    {label:"Government & Civics",emoji:"🏛️"},
+    {label:"Cultures & Traditions",emoji:"🎭"},
+    {label:"Current Events",emoji:"📰"},
+  ],
+  "PE & Health":[
+    {label:"Nutrition & Healthy Eating",emoji:"🥗"},
+    {label:"Exercise & Fitness",emoji:"🏃"},
+    {label:"Mental Health & Feelings",emoji:"🧠"},
+    {label:"Sports Rules & History",emoji:"🏆"},
+    {label:"Sleep & Hygiene",emoji:"😴"},
+    {label:"First Aid Basics",emoji:"🩹"},
+  ],
+  "Free Mode":[
+    {label:"Help with Homework",emoji:"📓"},
+    {label:"Learn Something New",emoji:"💡"},
+    {label:"Study for a Test",emoji:"📝"},
+    {label:"Explain a Concept",emoji:"🤔"},
+    {label:"Practice Problems",emoji:"🎯"},
+    {label:"Fun Facts",emoji:"🌟"},
+  ],
+};
+
 const GRADES=["K","1st","2nd","3rd","4th","5th","6th","7th","8th"];
 // ─── AVATAR SYSTEM ───
 const SKIN_TONES=[
@@ -711,21 +762,16 @@ function render(){
         ).join("")}
         ${S.isTyping?`<div class="flex-gap" style="gap:8px;margin-bottom:12px"><div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,${t.accent1},${t.success});display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${t.avatar}</div><div style="background:${t.chatBubbleBot};border-radius:14px 14px 14px 4px;border:1px solid ${t.accent1}15;padding:8px 12px;display:flex;gap:4px">${[0,1,2].map(i=>`<div style="width:6px;height:6px;border-radius:50%;background:${t.accent1};animation:typing 1s infinite;animation-delay:${i*.2}s"></div>`).join("")}</div></div>`:""}
         ${S.chatMessages.length<=1&&!S.uploadedImage?`
-        <div style="background:${t.card};border-radius:16px;padding:16px;margin:8px 0 12px;border:1.5px dashed ${t.accent1}44;animation:fadeUp .5s ease-out .3s both">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-            <span style="font-size:20px">📸</span>
-            <div>
-              <div class="bang" style="font-size:14px;color:${t.accent1};letter-spacing:1px">HOMEWORK HELP</div>
-              <div style="font-size:11px;color:rgba(255,255,255,.4)">Snap a photo or upload your assignment and ${esc(t.name)} will walk you through it!</div>
+        <div style="animation:fadeUp .5s ease-out .3s both">
+          <div style="margin:8px 0 10px">
+            <div style="font-size:11px;font-weight:700;color:${t.accent1};letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">📌 Pick a Topic</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${(TOPIC_SUGGESTIONS[S.subject?.label]||TOPIC_SUGGESTIONS["Free Mode"]).map(tp=>`<button onclick="sendMessage('${tp.label}')" style="display:inline-flex;align-items:center;gap:5px;background:${t.card};border:1.5px solid ${t.accent1}33;border-radius:20px;padding:8px 14px;font-size:12px;font-weight:600;color:rgba(255,255,255,.8);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='${t.accent1}';this.style.background='${t.accent1}15'" onmouseout="this.style.borderColor='${t.accent1}33';this.style.background='${t.card}'">${tp.emoji} ${tp.label}</button>`).join("")}
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button onclick="document.getElementById('camera-input').click()" style="flex:1;background:linear-gradient(135deg,${t.accent1},${t.success});border-radius:12px;padding:10px 0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#fff;font-weight:800;letter-spacing:.5px">
-              <span style="font-size:16px">📷</span> TAKE PHOTO
-            </button>
-            <button onclick="document.getElementById('file-input').click()" style="flex:1;background:linear-gradient(135deg,${t.accent3},${t.accent2});border-radius:12px;padding:10px 0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px;color:#fff;font-weight:800;letter-spacing:.5px">
-              <span style="font-size:16px">📁</span> UPLOAD FILE
-            </button>
+          <div style="display:flex;gap:8px;margin:10px 0">
+            <button onclick="document.getElementById('camera-input').click()" style="flex:1;background:linear-gradient(135deg,${t.accent1}15,${t.success}15);border:1.5px solid ${t.accent1}33;border-radius:12px;padding:10px 0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:${t.accent1};font-weight:700">📷 Photo Help</button>
+            <button onclick="document.getElementById('file-input').click()" style="flex:1;background:linear-gradient(135deg,${t.accent3}15,${t.accent2}15);border:1.5px solid ${t.accent3}33;border-radius:12px;padding:10px 0;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;color:${t.accent2};font-weight:700">📁 Upload</button>
           </div>
         </div>`:""}
         <div id="chat-end"></div>
@@ -769,11 +815,19 @@ function render(){
       <div style="padding:10px 14px;background:rgba(0,0,0,.5);border-top:1px solid ${t.accent1}15;position:relative;z-index:2;backdrop-filter:blur(10px)">
         <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none">
         <input type="file" id="file-input" accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.gif" style="display:none">
-        <div style="display:flex;gap:8px;align-items:center">
-          <button onclick="document.getElementById('camera-input').click()" title="Take a photo" style="background:linear-gradient(135deg,${t.accent1},${t.success});border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all .2s">📷</button>
-          <button onclick="document.getElementById('file-input').click()" title="Upload a file" style="background:linear-gradient(135deg,${t.accent3},${t.accent2});border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:all .2s">📁</button>
-          <input id="chat-input" placeholder="Talk to ${esc(t.name)}..." value="${esc(S.chatInput)}" style="flex:1;background:rgba(255,255,255,.06);border-radius:12px;border:1.5px solid ${t.accent1}22;padding:10px 14px;font-size:14px;color:#fff;outline:none">
-          <button onclick="sendMessage()" style="background:linear-gradient(135deg,${t.accent3},${t.danger});border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0;opacity:${S.chatInput.trim()||S.uploadedImage?1:.4}">▶</button>
+        <div style="display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+          <button onclick="openTool('calculator')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">🧮</span>Calc</button>
+          <button onclick="openTool('notepad')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">📝</span>Notes</button>
+          <button onclick="openTool('scratch')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">🎨</span>Draw</button>
+          <button onclick="openTool('formulas')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">📐</span>Formulas</button>
+          <button onclick="openTool('timer')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">⏱️</span>Timer</button>
+          <button onclick="openTool('flashcards')" style="flex-shrink:0;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer;display:flex;align-items:center;gap:4px"><span style="font-size:14px">🃏</span>Cards</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button onclick="document.getElementById('camera-input').click()" title="Take a photo" style="background:linear-gradient(135deg,${t.accent1},${t.success});border-radius:12px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:all .2s">📷</button>
+          <button onclick="document.getElementById('file-input').click()" title="Upload a file" style="background:linear-gradient(135deg,${t.accent3},${t.accent2});border-radius:12px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;transition:all .2s">📁</button>
+          <textarea id="chat-input" placeholder="Talk to ${esc(t.name)}..." rows="2" style="flex:1;background:rgba(255,255,255,.06);border-radius:14px;border:1.5px solid ${t.accent1}22;padding:12px 16px;font-size:15px;color:#fff;outline:none;resize:none;font-family:'Sora','Nunito',sans-serif;line-height:1.4;min-height:42px;max-height:100px">${esc(S.chatInput)}</textarea>
+          <button onclick="sendMessage()" style="background:linear-gradient(135deg,${t.accent3},${t.danger});border-radius:12px;width:42px;height:42px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;flex-shrink:0;opacity:${S.chatInput.trim()||S.uploadedImage?1:.4}">▶</button>
         </div>
       </div>
       ${S.tool?toolOverlayHTML():""}
@@ -781,8 +835,8 @@ function render(){
     </div>`;
     if(S.rewardGame?.active)setTimeout(launchRewardGame,100);
     const ci=document.getElementById("chat-input");
-    ci.oninput=e=>{S.chatInput=e.target.value};
-    ci.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey)sendMessage()};
+    ci.oninput=e=>{S.chatInput=e.target.value;e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,100)+'px'};
+    ci.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage()}};
     document.getElementById("file-input").onchange=handleImageUpload;
     document.getElementById("camera-input").onchange=handleImageUpload;
     document.getElementById("chat-end")?.scrollIntoView({behavior:"smooth"});
@@ -1073,7 +1127,7 @@ async function startChat(idx){
   const currText=currPrompt(p?.standards,p?.studentState);
   const accessText=buildAccessibilityPrompt(p?.needs,p?.needsOther);
   const t=T();
-  const intro=await askAI([{role:"user",content:`${gradeText}${currText}${accessText} We're starting a ${sub.label} session. Give a short enthusiastic greeting and ask what they'd like to work on within ${sub.label}. Keep it to 2 sentences max. Stay focused on ${sub.label} only.`}],t.sysPrompt);
+  const intro=await askAI([{role:"user",content:`${gradeText}${currText}${accessText} We're starting a ${sub.label} session. Give a short enthusiastic greeting (1-2 sentences). End with: "Pick a topic below or type your own question!" Stay focused on ${sub.label} only.`}],t.sysPrompt);
   S.chatMessages=[{role:"assistant",content:intro}];
   if(p?.ttsEnabled)setTimeout(()=>speak(intro),300);
   if(p){p.totalSessions=(p.totalSessions||0)+1;await saveProfile(p)}
