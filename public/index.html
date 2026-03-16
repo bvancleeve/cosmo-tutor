@@ -225,8 +225,8 @@ const PLANS = {
   free: {
     id:"free",name:"Explorer",price:"Free",priceNum:0,period:"",
     color:"#888",
-    limits:{sessionsPerDay:3,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading"],worlds:["space"],avatarBases:["hero_m","hero_f"]},
-    features:["3 tutoring sessions per day","5 challenge questions per day","2 homework photo scans per day","Math & Reading only","1 student profile","Space world only","2 avatars with skin tones"]
+    limits:{sessionsPerDay:10,challengesPerDay:5,photoUploads:2,profiles:1,subjects:["Math","Reading","Free Mode"],worlds:["space"],avatarBases:["hero_m","hero_f"]},
+    features:["10 tutoring sessions per day","5 challenge questions per day","2 homework photo scans per day","Math, Reading & Free Mode","1 student profile","Space world only","2 avatars with skin tones"]
   },
   family: {
     id:"family",name:"Family",price:"$9.99",priceNum:9.99,period:"/month",
@@ -271,6 +271,8 @@ let S = {
   screen:"loading", profiles:[], profile:null, themeId:"space",
   subject:null, chatMessages:[], chatInput:"", isTyping:false,
   challengeQ:null, challengeSel:null, challengeResult:null,
+  challengeRound:{questions:[],current:0,score:0,total:5,usedQuestions:[]},
+  avatarGear:null, // level-up gear selection screen
   parentPin:"", parentAuth:false, parentTab:"overview",
   activityLog:[], uploadedImage:null, uploadedImageType:null,
   hints:{active:false,count:0,maxXP:25,problemId:null},
@@ -475,7 +477,13 @@ async function addXP(amt,reason){
   S.activityLog.unshift({type:"xp",amount:amt,reason,subject:S.subject?.label,profile:p.name,time:Date.now()});
   S.activityLog=S.activityLog.slice(0,200);
   await save("cosmo-activity",S.activityLog);
-  if(leveledUp){showConfetti();setTimeout(()=>{S.rewardGame={active:true,level:p.level};render()},1500)}
+  if(leveledUp){
+    showConfetti();
+    const newGear=getGearForLevel(p.level);
+    setTimeout(()=>{S.rewardGame={active:true,level:p.level};render()},1500);
+    // After reward game, show gear if new items unlocked
+    if(newGear){setTimeout(()=>{if(!S.rewardGame)S.avatarGear=true;render()},5000)}
+  }
 }
 async function updateStreak(){
   const p=S.profile;if(!p)return;
@@ -516,6 +524,7 @@ function render(){
         <div style="color:rgba(255,255,255,.5);font-size:16px;margin-bottom:32px">AI-Powered Personalized Tutoring</div>
         <button class="btn" style="background:linear-gradient(135deg,#4ECDC4,#44CF6C);font-size:20px;padding:14px 40px;box-shadow:0 4px 30px #4ECDC444" onclick="S.screen='onboard';render()">🚀 GET STARTED</button>
         <div style="color:rgba(255,255,255,.25);font-size:12px;margin-top:20px">Personalized learning adventures for kids</div>
+        <button onclick="applyPromo()" style="color:rgba(255,215,0,.4);font-size:12px;background:none;border:none;cursor:pointer;margin-top:12px">🎟️ Have a promo code?</button>
       </div>
     </div>`;
     return;
@@ -661,12 +670,14 @@ function render(){
       <div class="max-w">
         <div class="flex-between" style="margin-bottom:16px">
           <div class="flex-gap" style="gap:8px">
-            <div style="font-size:24px;background:${t.accent1}22;border-radius:12px;padding:4px;width:40px;height:40px;display:flex;align-items:center;justify-content:center">${p?.avatar||"🧑‍🚀"}</div>
-            <div><div style="font-weight:800;font-size:14px">Hey, ${esc(p?.name||"Student")}!</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Grade ${p?.grade||""}</div></div>
+            <div style="font-size:24px;background:${t.accent1}22;border-radius:12px;padding:4px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;position:relative">${p?.avatar||"🧑‍🚀"}${gearDisplayHTML(p)?`<div style="position:absolute;bottom:-4px;right:-8px;font-size:10px">${gearDisplayHTML(p)}</div>`:""}</div>
+            <div><div style="font-weight:800;font-size:14px">Hey, ${esc(p?.name||"Student")}!</div><div style="font-size:10px;color:rgba(255,255,255,.4)">Grade ${p?.grade||""} · Level ${p?.level||1}${getUnlockedGear(p?.level||1).length?` · ${getUnlockedGear(p?.level||1).length} gear`:""}</div></div>
           </div>
           <div class="flex-gap">
             <button onclick="S.tool='menu';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">🛠️ TOOLS</button>
+            ${getUnlockedGear(p?.level||1).length?`<button onclick="S.avatarGear=true;render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">👤 GEAR</button>`:""}
             <button onclick="S.tutorial.show=true;render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">❓ HELP</button>
+            <button onclick="applyPromo()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,215,0,.5);border:1px solid rgba(255,215,0,.15)" class="bang">🎟️ CODE</button>
             ${S.profiles.length>1?`<button onclick="S.screen='profile-select';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">👥 SWITCH</button>`:""}
             <button onclick="S.parentAuth=false;S.parentPin='';S.screen='parent';render()" style="background:rgba(255,255,255,.06);border-radius:10px;padding:6px 10px;font-size:9px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08)" class="bang">📡 PARENT</button>
           </div>
@@ -718,6 +729,7 @@ function render(){
       ${S.showUpgrade?upgradeScreenHTML():""}
       ${S.tool?toolOverlayHTML():""}
       ${S.rewardGame?rewardGameOverlayHTML():""}
+      ${S.avatarGear?gearOverlayHTML():""}
     </div>`;
     if(S.rewardGame?.active)setTimeout(launchRewardGame,100);
     return;
@@ -832,6 +844,7 @@ function render(){
       </div>
       ${S.tool?toolOverlayHTML():""}
       ${S.rewardGame?rewardGameOverlayHTML():""}
+      ${S.avatarGear?gearOverlayHTML():""}
     </div>`;
     if(S.rewardGame?.active)setTimeout(launchRewardGame,100);
     const ci=document.getElementById("chat-input");
@@ -845,20 +858,39 @@ function render(){
 
   // ─── CHALLENGE ───
   if(S.screen==="challenge"){
-    const q=S.challengeQ;
+    const q=S.challengeQ;const r=S.challengeRound;
     app.innerHTML=`<div class="screen" style="background:${t.bg};padding:20px">
       ${bgFx(t.bgType,t.accent1)}
       <div id="confetti-mount"></div>
       <div class="max-w" style="max-width:480px">
-        <div class="flex-between" style="margin-bottom:16px">
+        <div class="flex-between" style="margin-bottom:12px">
           <button onclick="S.screen=S.chatMessages.length?'chat':'home';render()" style="background:rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.1)">← Back</button>
           <div class="bang" style="font-size:20px;color:${t.accent1};letter-spacing:2px">⚡ CHALLENGE</div>
           <div class="bang" style="background:#1a1a2e;border-radius:10px;padding:4px 10px;font-size:12px;color:${t.accent2};border:1.5px solid ${t.accent2}44">${t.xpLabel} ${p?.xp||0}</div>
         </div>
-        ${!q?`<div class="text-center fade-up" style="padding:60px 0"><div style="font-size:48px;animation:float 2s infinite">${t.icon}</div><div class="bang" style="font-size:22px;color:${t.accent1};margin-top:12px">GENERATING CHALLENGE...</div><div style="display:flex;gap:4px;justify-content:center;padding:12px">${[0,1,2].map(i=>`<div style="width:6px;height:6px;border-radius:50%;background:${t.accent1};animation:typing 1s infinite;animation-delay:${i*.2}s"></div>`).join("")}</div></div>`:
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0">Q${r.current+1}/${r.total}</div>
+          <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+            <div style="width:${((r.current+(S.challengeResult?1:0))/r.total)*100}%;height:100%;background:linear-gradient(90deg,${t.accent1},${t.success});border-radius:3px;transition:width .4s"></div>
+          </div>
+          <div style="font-size:11px;color:${t.success};flex-shrink:0">${r.score}✓</div>
+        </div>
+        ${S.challengeResult==="summary"?`
+        <div class="text-center fade-up" style="padding:20px 0">
+          <div style="font-size:64px;margin-bottom:12px">${r.score>=4?"🏆":r.score>=3?"🎯":r.score>=2?"💪":"📚"}</div>
+          <div class="bang" style="font-size:28px;color:${t.accent2};letter-spacing:3px;margin-bottom:8px">ROUND COMPLETE!</div>
+          <div style="font-size:48px;font-weight:800;color:#fff;margin-bottom:4px">${r.score} / ${r.total}</div>
+          <div style="font-size:14px;color:rgba(255,255,255,.4);margin-bottom:4px">${r.score>=4?"Incredible! You're a star!":r.score>=3?"Great job! Keep it up!":r.score>=2?"Good effort! Practice makes perfect!":"Keep trying! You'll get there!"}</div>
+          <div class="bang shimmer-text" style="font-size:36px;background-image:linear-gradient(135deg,${t.accent2},${t.accent3});margin-bottom:20px">+${r.score*XP_CHALLENGE} ${t.xpLabel}</div>
+          <div style="display:flex;gap:10px;justify-content:center">
+            <button class="btn" onclick="startChallenge()" style="background:linear-gradient(135deg,${t.accent1},${t.success})">NEW ROUND</button>
+            <button class="btn" onclick="S.screen=S.chatMessages.length?'chat':'home';render()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5)">DONE</button>
+          </div>
+        </div>`:
+        !q?`<div class="text-center fade-up" style="padding:60px 0"><div style="font-size:48px;animation:float 2s infinite">${t.icon}</div><div class="bang" style="font-size:22px;color:${t.accent1};margin-top:12px">GENERATING CHALLENGE...</div><div style="display:flex;gap:4px;justify-content:center;padding:12px">${[0,1,2].map(i=>`<div style="width:6px;height:6px;border-radius:50%;background:${t.accent1};animation:typing 1s infinite;animation-delay:${i*.2}s"></div>`).join("")}</div></div>`:
         !S.challengeResult?`<div class="fade-up">
           <div style="background:${t.card};border-radius:16px;padding:16px;margin-bottom:16px;border:1.5px solid ${t.accent1}22">
-            <div class="mono" style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">${q.subject?.label||"Challenge"}</div>
+            <div class="mono" style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">${q.subject?.label||"Challenge"} · Question ${r.current+1} of ${r.total}</div>
             <div style="display:flex;align-items:flex-start;gap:8px"><div style="font-size:16px;font-weight:700;line-height:1.6;flex:1">${esc(q.question)}</div><button onclick="speakChallenge()" style="background:none;border:none;font-size:18px;cursor:pointer;flex-shrink:0;padding:2px" title="Read aloud">🔊</button></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
@@ -871,8 +903,7 @@ function render(){
           <div class="bang" style="font-size:28px;color:${t.accent2};text-shadow:0 0 20px ${t.accent2}66;letter-spacing:3px;margin-bottom:8px">${t.celebWords}</div>
           <div class="bang shimmer-text" style="font-size:48px;background-image:linear-gradient(135deg,${t.accent2},${t.accent3})">+${XP_CHALLENGE} ${t.xpLabel}</div>
           <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
-            <button class="btn" onclick="startChallenge()" style="background:linear-gradient(135deg,${t.accent1},${t.success})">NEXT CHALLENGE</button>
-            <button class="btn" onclick="S.screen=S.chatMessages.length?'chat':'home';render()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5)">DONE</button>
+            <button class="btn" onclick="nextChallengeQuestion()" style="background:linear-gradient(135deg,${t.accent1},${t.success})">${r.current+1<r.total?"NEXT QUESTION →":"SEE RESULTS"}</button>
           </div>
         </div>`:
         `<div class="text-center" style="animation:celebrate .5s ease-out;padding:20px 0">
@@ -880,12 +911,12 @@ function render(){
           <div class="bang" style="font-size:24px;color:${t.danger};letter-spacing:2px;margin-bottom:12px">${t.wrongWord}</div>
           <div style="background:${t.card};border-radius:12px;padding:16px;text-align:left;margin-bottom:16px;border:1px solid ${t.accent1}22">
             <div class="bang" style="font-size:13px;color:${t.accent1};letter-spacing:1px;margin-bottom:6px">THE ANSWER</div>
-            <div style="font-size:14px;color:rgba(255,255,255,.7);line-height:1.6">${esc(q.options?.[q.correct]||"")}</div>
+            <div style="font-size:14px;color:rgba(255,255,255,.7);line-height:1.6">${esc(q.options?.[parseInt(q.correct)]||"")}</div>
             ${q.explanation?`<div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:8px;line-height:1.5">${esc(q.explanation)}</div>`:""}
+            <div style="font-size:12px;color:rgba(255,255,255,.3);margin-top:8px">You chose: ${esc(q.options?.[parseInt(S.challengeSel)]||"")}</div>
           </div>
           <div style="display:flex;gap:10px;justify-content:center">
-            <button class="btn" onclick="startChallenge()" style="background:linear-gradient(135deg,${t.accent1},${t.success})">NEXT CHALLENGE</button>
-            <button class="btn" onclick="S.screen=S.chatMessages.length?'chat':'home';render()" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);color:rgba(255,255,255,.5)">DONE</button>
+            <button class="btn" onclick="nextChallengeQuestion()" style="background:linear-gradient(135deg,${t.accent1},${t.success})">${r.current+1<r.total?"NEXT QUESTION →":"SEE RESULTS"}</button>
           </div>
         </div>`}
       </div>
@@ -1193,27 +1224,64 @@ function endHintMode(){
 async function startChallenge(){
   resetDailyCountsIfNeeded();
   if(!canAccess("challenges")){S.showPaywall={reason:"challenges"};render();return}
-  S.screen="challenge";S.challengeQ=null;S.challengeSel=null;S.challengeResult=null;render();
+  // Start a round of 5 questions
+  S.screen="challenge";S.challengeQ=null;S.challengeSel=null;S.challengeResult=null;
+  S.challengeRound={questions:[],current:0,score:0,total:5,usedQuestions:S.challengeRound.usedQuestions||[]};
+  render();
   if(S.profile)S.profile.dailyChallenges=(S.profile.dailyChallenges||0)+1;
   await updateStreak();
+  await loadNextQuestion();
+}
+
+async function loadNextQuestion(){
+  S.challengeQ=null;S.challengeSel=null;S.challengeResult=null;render();
   const sub=S.subject||SUBJECTS[0],p=S.profile,t=T();
   const currNote=p?.standards?.length?` The question MUST align to: ${currLabel(p.standards)}.${p.studentState?" Student is in "+p.studentState+".":""}`:"";
   const accessNote=p?.needs?.length?` Accommodate these learning needs: ${p.needs.map(nid=>{const n=LEARNING_NEEDS.find(x=>x.id===nid);return n?n.label:""}).filter(Boolean).join(", ")}. Keep questions clear and accessible.`:"";
-  const prompt=`Generate a ${sub.label} multiple choice question for a ${p?.grade||"3rd"} grader.${currNote}${accessNote} Respond ONLY in this exact JSON format, nothing else:\n{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"..."}\nWhere "correct" is the 0-based index of the right answer.`;
-  const raw=await askAI([{role:"user",content:prompt}],"You are a quiz generator for children. Respond ONLY with valid JSON. No markdown, no backticks. All questions must be age-appropriate and educational. Never generate questions about violence, drugs, sex, or any inappropriate topic.");
-  try{const cl=raw.replace(/```json?\n?/g,"").replace(/```/g,"").trim();S.challengeQ={...JSON.parse(cl),subject:sub}}catch{S.challengeQ={question:"What is 7 × 8?",options:["A) 54","B) 56","C) 48","D) 64"],correct:1,explanation:"7 × 8 = 56",subject:sub}}
+  // Avoid repeats
+  const usedList=S.challengeRound.usedQuestions.slice(-20);
+  const avoidNote=usedList.length?`\nDo NOT repeat or closely resemble any of these recent questions:\n${usedList.map((q,i)=>(i+1)+". "+q).join("\n")}`:"";
+  const prompt=`Generate a ${sub.label} multiple choice question for a ${p?.grade||"3rd"} grader.${currNote}${accessNote}${avoidNote}\n\nRULES:\n1. ALWAYS provide exactly 4 answer options labeled A), B), C), D)\n2. Make 3 wrong answers and 1 correct answer\n3. Make wrong answers plausible but clearly wrong\n4. The "correct" field MUST be the 0-based index: 0=A, 1=B, 2=C, 3=D\n5. VERIFY your answer is mathematically/factually correct before responding\n\nRespond ONLY in this exact JSON format:\n{"question":"...","options":["A) ...","B) ...","C) ...","D) ..."],"correct":0,"explanation":"..."}\n\nDOUBLE-CHECK: If the answer is B, correct must be 1. If C, correct must be 2. If D, correct must be 3.`;
+  const raw=await askAI([{role:"user",content:prompt}],"You are a quiz generator for children. Respond ONLY with valid JSON. No markdown, no backticks, no extra text. All questions must be age-appropriate. CRITICAL RULES: 1) Always give exactly 4 multiple choice options. 2) The correct field must be the 0-based INDEX of the right answer (0=A, 1=B, 2=C, 3=D). 3) Verify the answer is factually correct. 4) Verify the index matches the correct option. If the answer is option B, correct must equal 1.");
+  try{
+    const cl=raw.replace(/```json?\n?/g,"").replace(/```/g,"").trim();
+    const parsed=JSON.parse(cl);
+    // Force correct to be a number
+    parsed.correct=parseInt(parsed.correct,10);
+    if(isNaN(parsed.correct)||parsed.correct<0||parsed.correct>3)parsed.correct=0;
+    S.challengeQ={...parsed,subject:sub};
+    S.challengeRound.usedQuestions.push(parsed.question);
+  }catch{
+    S.challengeQ={question:"What is 7 × 8?",options:["A) 54","B) 56","C) 48","D) 64"],correct:1,explanation:"7 × 8 = 56",subject:sub};
+  }
   if(p?.ttsEnabled&&S.challengeQ)setTimeout(()=>speak(S.challengeQ.question+". "+S.challengeQ.options.join(". ")),300);
   render();
 }
 
 async function submitChallenge(){
   if(S.challengeSel===null)return;
-  const correct=S.challengeSel===S.challengeQ.correct;
+  // Force both to int for comparison
+  const selIdx=parseInt(S.challengeSel,10);
+  const correctIdx=parseInt(S.challengeQ.correct,10);
+  const correct=selIdx===correctIdx;
   S.challengeResult=correct?"correct":"wrong";
-  if(correct){await addXP(XP_CHALLENGE,"challenge correct");showConfetti()}
+  if(correct){
+    S.challengeRound.score++;
+    await addXP(XP_CHALLENGE,"challenge correct");showConfetti();
+  }
   S.activityLog.unshift({type:"challenge",correct,subject:S.challengeQ.subject?.label,question:S.challengeQ.question,profile:S.profile?.name,time:Date.now()});
   S.activityLog=S.activityLog.slice(0,200);await save("cosmo-activity",S.activityLog);
   render();
+}
+
+async function nextChallengeQuestion(){
+  S.challengeRound.current++;
+  if(S.challengeRound.current>=S.challengeRound.total){
+    // Round complete — show summary
+    S.challengeResult="summary";render();
+    return;
+  }
+  await loadNextQuestion();
 }
 
 function showConfetti(){const t=T();const m=document.getElementById("confetti-mount");if(m)m.innerHTML=confettiHTML(t);setTimeout(()=>{if(m)m.innerHTML=""},3000)}
@@ -1315,6 +1383,51 @@ function toolsMenuHTML(){
       </button>`).join("")}
     </div>
     <button onclick="S.tool=null;closeTool();S.showTools=false;render()" style="display:block;margin:0 auto;font-size:13px;color:rgba(255,255,255,.3)">Close</button>
+  </div></div>`;
+}
+
+// ─── GEAR OVERLAY ───
+function gearOverlayHTML(){
+  if(!S.avatarGear)return"";
+  const t=T(),p=S.profile;
+  const level=p?.level||1;
+  const unlocked=getUnlockedGear(level);
+  const equipped=getEquippedGear(p);
+  const slots=["head","face","hand","back","pet","aura"];
+  const slotLabels={head:"Head",face:"Face",hand:"Hand",back:"Back",pet:"Pet",aura:"Aura"};
+  const slotIcons={head:"👑",face:"😎",hand:"🗡️",back:"🧣",pet:"🐲",aura:"✨"};
+
+  return`<div class="overlay" style="background:rgba(0,0,0,.92)"><div class="fade-up" style="max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div></div>
+      <div class="bang" style="font-size:22px;color:${t.accent2};letter-spacing:2px">👤 AVATAR GEAR</div>
+      <button onclick="S.avatarGear=null;render()" style="background:rgba(255,255,255,.08);border-radius:8px;padding:6px 12px;font-size:12px;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.1);cursor:pointer">✕ Close</button>
+    </div>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:56px;margin-bottom:4px;position:relative;display:inline-block">${p?.avatar||"🧑‍🚀"}<div style="position:absolute;bottom:-4px;right:-14px;font-size:16px">${gearDisplayHTML(p)}</div></div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4)">Level ${level} · ${unlocked.length} items unlocked</div>
+    </div>
+    ${slots.map(slot=>{
+      const items=unlocked.filter(g=>g.slot===slot);
+      if(!items.length)return"";
+      const equippedInSlot=items.find(g=>equipped.includes(g.id));
+      return`<div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px">${slotIcons[slot]} ${slotLabels[slot]}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${items.map(g=>{
+            const isEquipped=equipped.includes(g.id);
+            return`<button onclick="${isEquipped?"unequipGear('"+g.id+"')":"equipGear('"+g.id+"')"}" style="display:flex;align-items:center;gap:8px;background:${isEquipped?t.accent1+"22":"rgba(255,255,255,.04)"};border:2px solid ${isEquipped?t.accent1:"rgba(255,255,255,.08)"};border-radius:12px;padding:10px 14px;transition:all .2s;cursor:pointer">
+              <span style="font-size:22px">${g.emoji}</span>
+              <div style="text-align:left"><div style="font-size:12px;font-weight:700;color:${isEquipped?"#fff":"rgba(255,255,255,.6)"}">${g.name}</div><div style="font-size:9px;color:${isEquipped?t.accent1:"rgba(255,255,255,.3)"}">${isEquipped?"✓ Equipped":"Tap to equip"}</div></div>
+            </button>`;
+          }).join("")}
+        </div>
+      </div>`;
+    }).join("")}
+    ${level<10?`<div style="background:rgba(255,255,255,.04);border-radius:12px;padding:14px;border:1px dashed rgba(255,255,255,.1);text-align:center;margin-top:8px">
+      <div style="font-size:12px;color:rgba(255,255,255,.3)">🔒 More gear unlocks at Level ${AVATAR_GEAR.find(g=>g.level>level)?.level||"??"}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px">${100-((p?.xp||0)%100)} XP to next level</div>
+    </div>`:""}
   </div></div>`;
 }
 
@@ -1595,6 +1708,44 @@ const UPGRADES=[
 ];
 function getUpgrade(level){return UPGRADES[Math.min(level-1,UPGRADES.length-1)];}
 
+// ─── AVATAR GEAR (unlocked by leveling up) ───
+const AVATAR_GEAR=[
+  {level:2,items:[{id:"crown_bronze",emoji:"👑",name:"Bronze Crown",slot:"head"},{id:"cape_blue",emoji:"🧣",name:"Blue Cape",slot:"back"}]},
+  {level:3,items:[{id:"glasses_cool",emoji:"😎",name:"Cool Shades",slot:"face"},{id:"shield_wood",emoji:"🛡️",name:"Wooden Shield",slot:"hand"}]},
+  {level:4,items:[{id:"crown_silver",emoji:"👑",name:"Silver Crown",slot:"head"},{id:"wand_magic",emoji:"🪄",name:"Magic Wand",slot:"hand"}]},
+  {level:5,items:[{id:"wings_angel",emoji:"🪽",name:"Angel Wings",slot:"back"},{id:"glasses_star",emoji:"⭐",name:"Star Visor",slot:"face"}]},
+  {level:6,items:[{id:"sword_fire",emoji:"🗡️",name:"Fire Sword",slot:"hand"},{id:"cape_gold",emoji:"✨",name:"Golden Cape",slot:"back"}]},
+  {level:7,items:[{id:"crown_gold",emoji:"👑",name:"Gold Crown",slot:"head"},{id:"pet_dragon",emoji:"🐲",name:"Baby Dragon Pet",slot:"pet"}]},
+  {level:8,items:[{id:"aura_rainbow",emoji:"🌈",name:"Rainbow Aura",slot:"aura"},{id:"jetpack",emoji:"🚀",name:"Jetpack",slot:"back"}]},
+  {level:9,items:[{id:"crown_diamond",emoji:"💎",name:"Diamond Crown",slot:"head"},{id:"pet_phoenix",emoji:"🔥",name:"Phoenix Pet",slot:"pet"}]},
+  {level:10,items:[{id:"halo",emoji:"😇",name:"Golden Halo",slot:"head"},{id:"lightning",emoji:"⚡",name:"Lightning Aura",slot:"aura"}]},
+];
+function getGearForLevel(level){return AVATAR_GEAR.find(g=>g.level===level)}
+function getUnlockedGear(level){return AVATAR_GEAR.filter(g=>g.level<=level).flatMap(g=>g.items)}
+function getEquippedGear(profile){return profile?.equippedGear||[]}
+function equipGear(itemId){
+  if(!S.profile)return;
+  S.profile.equippedGear=S.profile.equippedGear||[];
+  const allGear=getUnlockedGear(S.profile.level||1);
+  const item=allGear.find(g=>g.id===itemId);if(!item)return;
+  // Replace same slot
+  S.profile.equippedGear=S.profile.equippedGear.filter(g=>{const gi=allGear.find(x=>x.id===g);return gi&&gi.slot!==item.slot});
+  S.profile.equippedGear.push(itemId);
+  saveProfile(S.profile);render();
+}
+function unequipGear(itemId){
+  if(!S.profile)return;
+  S.profile.equippedGear=(S.profile.equippedGear||[]).filter(g=>g!==itemId);
+  saveProfile(S.profile);render();
+}
+function gearDisplayHTML(profile){
+  const equipped=getEquippedGear(profile);
+  const allGear=getUnlockedGear(profile?.level||1);
+  const items=equipped.map(id=>allGear.find(g=>g.id===id)).filter(Boolean);
+  if(!items.length)return"";
+  return items.map(g=>g.emoji).join("");
+}
+
 let gameInstance=null;
 function launchRewardGame(){
   const t=T();const lvl=S.rewardGame?.level||1;const up=getUpgrade(lvl);
@@ -1828,12 +1979,12 @@ function rewardGameOverlayHTML(){
 function paywallHTML(reason){
   const t=T();
   const msgs={
-    sessions:"You've used all 3 free tutoring sessions today!",
+    sessions:"You've used all 10 free tutoring sessions today!",
     challenges:"You've hit today's 5 free challenge limit!",
     photos:"You've used both free photo scans today!",
     subject:`${S.showPaywall?.subject||"This subject"} is a paid feature!`,
     world:"This world is only available on paid plans!",
-    avatar:"This avatar is only available on paid plans! Upgrade to unlock all 10 characters.",
+    avatar:"This avatar is only available on paid plans! Upgrade to unlock all characters.",
     profiles:"Free plan allows 1 student profile."
   };
   return`<div class="overlay" style="background:rgba(0,0,0,.88)"><div class="fade-up" style="max-width:420px;width:100%">
